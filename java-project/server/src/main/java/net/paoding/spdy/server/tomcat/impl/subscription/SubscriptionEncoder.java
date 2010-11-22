@@ -1,4 +1,4 @@
-package net.paoding.spdy.server.tomcat.impl.trap;
+package net.paoding.spdy.server.tomcat.impl.subscription;
 
 import java.io.InputStream;
 import java.util.HashMap;

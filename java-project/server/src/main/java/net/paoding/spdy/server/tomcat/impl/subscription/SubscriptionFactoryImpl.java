@@ -1,6 +1,8 @@
-package net.paoding.spdy.server.tomcat.impl.trap;
+package net.paoding.spdy.server.tomcat.impl.subscription;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
@@ -24,7 +26,9 @@ public class SubscriptionFactoryImpl implements SubscriptionFactory {
 
     @Override
     public ServerSubscription createSubscription(SynStream syn) {
-        return new ServerSubscriptionImpl(this, syn);
+        ServerSubscriptionImpl sub = new ServerSubscriptionImpl(this, syn);
+        subscriptions.put(syn.getStreamId(), sub);
+        return sub;
     }
 
     @Override
@@ -32,8 +36,16 @@ public class SubscriptionFactoryImpl implements SubscriptionFactory {
         return subscriptions.get(streamId);
     }
 
-    public void trapperClosed(ServerSubscriptionImpl trapper) {
-        subscriptions.remove(trapper.getAssociatedId());
+    public void subscriptionClosed(ServerSubscriptionImpl sub) {
+        subscriptions.remove(sub.getAssociatedId());
     }
 
+    public void close() {
+        List<ServerSubscriptionImpl> list = new ArrayList<ServerSubscriptionImpl>(
+                subscriptions.values());
+        for (ServerSubscriptionImpl serverSubscriptionImpl : list) {
+            serverSubscriptionImpl.setClosed();
+        }
+
+    }
 }

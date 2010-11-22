@@ -1,5 +1,6 @@
 package net.paoding.spdy.common.frame.frames;
 
+import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Map;
 
@@ -63,8 +64,9 @@ public class SynReply extends ControlFrame implements StreamFrame {
 
     @Override
     public String toString() {
-        return String.format("SynRely[streamId={0}, flags={1}, headers.size={2}, timestamp={3}]",
-                streamId, flags, headers.size(), getTimestamp());
+        return String.format("SynRely[streamId=%s, flags=%s, headers.size=%s, timestamp=%s]",
+                streamId, flags, headers.size(),
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(getTimestamp()));
     }
 
 }

@@ -4,7 +4,6 @@ import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -15,8 +14,8 @@ import net.paoding.spdy.common.frame.PingListener;
 import net.paoding.spdy.common.supports.ExecutorUtil;
 import net.paoding.spdy.server.tomcat.impl.RequestDecoder;
 import net.paoding.spdy.server.tomcat.impl.RequestExecution;
-import net.paoding.spdy.server.tomcat.impl.trap.SubscriptionEncoder;
-import net.paoding.spdy.server.tomcat.impl.trap.SubscriptionFactoryImpl;
+import net.paoding.spdy.server.tomcat.impl.subscription.SubscriptionEncoder;
+import net.paoding.spdy.server.tomcat.impl.subscription.SubscriptionFactoryImpl;
 
 import org.apache.coyote.Adapter;
 import org.apache.coyote.ProtocolHandler;
@@ -48,7 +47,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
 
     private Adapter adapter;
 
-    private Executor executor;
+    private ExecutorService executor;
 
     // 用于标识executor是自己创建的，还是外部设置进来的
     private boolean sharedExecutor;
@@ -107,7 +106,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
      * 
      * @param executor
      */
-    public void setExecutor(Executor executor) {
+    public void setExecutor(ExecutorService executor) {
         if (this.executor != null) {
             throw new IllegalStateException("executor can't change once set.");
         }
@@ -120,7 +119,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
      * 
      * @return
      */
-    protected synchronized Executor getExecutor() {
+    protected synchronized ExecutorService getExecutor() {
         if (executor == null) {
             executor = Executors.newCachedThreadPool();
             this.sharedExecutor = false;

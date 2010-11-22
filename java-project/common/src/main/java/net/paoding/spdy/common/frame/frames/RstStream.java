@@ -1,5 +1,6 @@
 package net.paoding.spdy.common.frame.frames;
 
+import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Map;
 
@@ -105,9 +106,10 @@ public class RstStream extends ControlFrame implements StreamFrame {
 
     @Override
     public String toString() {
-        return String
-                .format("RstStream[streamId={0}, flags={1}, statusCode={2}, headers.size={3}, timestamp={4}]",
-                        streamId, flags, statusCode, headers.size(), getTimestamp());
+        return String.format(
+                "RstStream[streamId=%s, flags=%s, statusCode={2}, headers.size=%s, timestamp=%s]",
+                streamId, flags, statusCode, headers.size(), new SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm:ss").format(getTimestamp()));
     }
 
 }

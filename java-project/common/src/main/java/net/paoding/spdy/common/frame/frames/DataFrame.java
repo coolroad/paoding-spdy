@@ -1,5 +1,7 @@
 package net.paoding.spdy.common.frame.frames;
 
+import java.text.SimpleDateFormat;
+
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
@@ -92,7 +94,8 @@ public class DataFrame implements StreamFrame {
 
     @Override
     public String toString() {
-        return String.format("DataFrame[streamId={0}, flags={1}, data={2}]", streamId, flags, data);
+        return String.format("DataFrame[streamId=%s, flags=%s, data=%s, timestamp=%s]", streamId,
+                flags, data, new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(getTimestamp()));
     }
 
 }

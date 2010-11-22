@@ -1,4 +1,4 @@
-package net.paoding.spdy.server.tomcat.impl.trap;
+package net.paoding.spdy.server.tomcat.impl.subscription;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -105,7 +105,7 @@ public class ServerSubscriptionImpl implements ServerSubscription {
             return;
         }
         closed = true;
-        factory.trapperClosed(this);
+        factory.subscriptionClosed(this);
         listeners.setSuccess();
         this.channel = null;
         this.factory = null;

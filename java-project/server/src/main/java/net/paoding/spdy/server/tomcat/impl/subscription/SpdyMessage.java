@@ -1,4 +1,4 @@
-package net.paoding.spdy.server.tomcat.impl.trap;
+package net.paoding.spdy.server.tomcat.impl.subscription;
 
 import net.paoding.spdy.server.subscription.Message;
 
