@@ -31,6 +31,9 @@ public class Main {
         System.out.println("content=" + getContentAsString(response));
         //
         System.out.println();
+        if (true) {
+            return;
+        }
 
         System.out.println(".... enter subscribe");
         //            Thread.sleep(10000);

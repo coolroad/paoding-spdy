@@ -7,6 +7,8 @@ import net.paoding.spdy.common.frame.frames.SpdyFrame;
 import net.paoding.spdy.common.frame.frames.SynReply;
 import net.paoding.spdy.server.tomcat.impl.supports.CoyoteAttributes;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.coyote.Request;
 import org.apache.coyote.Response;
 import org.apache.tomcat.util.buf.MessageBytes;
@@ -15,10 +17,15 @@ import org.jboss.netty.channel.Channels;
 
 public class Commit implements Action {
 
+    private Log logger = LogFactory.getLog(getClass());
+
     @Override
     public void action(Request request, Response response, Object param) {
         if (response.isCommitted()) {
             return;
+        }
+        if (logger.isDebugEnabled()) {
+            logger.debug("commiting response: " + request);
         }
         SynReply frame = new SynReply();
         frame.setChannel(CoyoteAttributes.getChannel(request));

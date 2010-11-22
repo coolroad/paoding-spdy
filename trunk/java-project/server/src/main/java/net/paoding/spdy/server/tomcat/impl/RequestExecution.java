@@ -3,7 +3,9 @@ package net.paoding.spdy.server.tomcat.impl;
 import static org.apache.coyote.ActionCode.ACTION_CLOSE;
 import static org.apache.coyote.ActionCode.ACTION_COMMIT;
 
-import java.util.concurrent.Executor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.concurrent.ExecutorService;
 
 import net.paoding.spdy.server.tomcat.impl.hook.Action;
 import net.paoding.spdy.server.tomcat.impl.hook.Close;
@@ -22,18 +24,23 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
 
+/**
+ * 
+ * @author qieqie.wang@gmail.com
+ * 
+ */
 @Sharable
 public class RequestExecution extends SimpleChannelHandler {
 
     protected static Log logger = LogFactory.getLog(RequestExecution.class);
 
-    private Adapter adapter;
+    private Adapter coyoteAdapter;
 
-    private Executor executor;
+    private ExecutorService requstExecutor;
 
-    public RequestExecution(Executor executor, Adapter adapter) {
-        this.executor = executor;
-        this.adapter = adapter;
+    public RequestExecution(ExecutorService executor, Adapter adapter) {
+        this.requstExecutor = executor;
+        this.coyoteAdapter = adapter;
     }
 
     @Override
@@ -42,18 +49,17 @@ public class RequestExecution extends SimpleChannelHandler {
         if (msg instanceof Request) {
             final Request request = (Request) msg;
             final Response response = createResponse(request);
-            Runnable command = new Runnable() {
+            requstExecutor.submit(new Runnable() {
 
                 @Override
                 public void run() {
                     try {
-                        adapter.service(request, response);
+                        coyoteAdapter.service(request, response);
                     } catch (Exception e) {
                         logger.error("", e);
                     }
                 }
-            };
-            executor.execute(command);
+            });
         } else {
             ctx.sendUpstream(e);
         }
@@ -71,9 +77,28 @@ public class RequestExecution extends SimpleChannelHandler {
     private static class HookDelegate implements ActionHook {
 
         private static Action[] actions = new Action[50];
-        {
+
+        private static Field[] codeFields = new Field[50]; // now is 25
+
+        static {
+            // 
             actions[ACTION_COMMIT.getCode()] = new Commit();
             actions[ACTION_CLOSE.getCode()] = new Close();
+
+            Field[] fields = ActionCode.class.getFields();
+            for (Field field : fields) {
+                if (Modifier.isStatic(field.getModifiers())) {
+                    try {
+                        ActionCode code = (ActionCode) field.get(ActionCode.class);
+                        codeFields[code.getCode()] = field;
+                    } catch (IndexOutOfBoundsException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        logger.error("", e);
+                    }
+                }
+
+            }
         }
 
         private final Request request;
@@ -90,11 +115,15 @@ public class RequestExecution extends SimpleChannelHandler {
             Action action = actions[actionCode.getCode()];
             if (action != null) {
                 action.action(request, response, param);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("suck " + codeFields[actionCode.getCode()].getName());
+                }
             } else {
-                logger.debug("not action for code " + actionCode);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("ignores " + codeFields[actionCode.getCode()].getName());
+                }
             }
         }
-
     }
 
 }

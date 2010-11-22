@@ -1,5 +1,6 @@
 package net.paoding.spdy.common.frame.frames;
 
+import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Map;
 
@@ -97,9 +98,10 @@ public class SynStream extends ControlFrame implements StreamFrame {
 
     @Override
     public String toString() {
-        return String
-                .format("SynStream[streamId={0}, flags={1}, associatedId={2}, headers.size={3}, timestamp={4}]",
-                        streamId, flags, associatedId, headers.size(), getTimestamp());
+        return String.format(
+                "SynStream[streamId=%s, flags=%s, associatedId=%s, headers.size=%s, timestamp=%s]",
+                streamId, flags, associatedId, headers.size(), new SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm:ss").format(getTimestamp()));
     }
 
 }

@@ -116,7 +116,7 @@ public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
                     + (length - buffer.readableBytes() + expectedExceed));
         }
         if (logger.isDebugEnabled()) {
-            logger.debug("decoded control frame: " + frame);
+            logger.debug("ControlFrame: " + frame);
         }
         return frame;
     }
@@ -139,7 +139,7 @@ public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
         }
         buffer.skipBytes(length);
         if (logger.isDebugEnabled()) {
-            logger.debug("decoded data frame(" //
+            logger.debug("DataFrame(" //
                     + (cumulation == buffer ? "c" : "s") + "): " + frame);
         }
         return frame;
