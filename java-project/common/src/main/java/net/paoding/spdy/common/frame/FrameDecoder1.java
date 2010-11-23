@@ -13,7 +13,7 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 
 /**
- * spdy帧解码器
+ * 基于netty FrameDecoder的spdy帧解码器
  * 
  * @author qieqie.wang@gmail.com
  * 

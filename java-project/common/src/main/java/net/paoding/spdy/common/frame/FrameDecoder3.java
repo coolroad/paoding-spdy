@@ -33,11 +33,26 @@ import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 
+/**
+ * 基于SimpleChannelUpstreamHandler实现的spdy帧解码器
+ * <p>
+ * 对DataFrame的解码上，尽量不再copy 已有的buffer到dataFrame的data上
+ * 
+ * @author qieqie.wang@gmail.com
+ * 
+ */
 public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
 
     private static Log logger = LogFactory.getLog(FrameDecoder3.class);
 
-    private ChannelBuffer cumulation;
+    // messageReceived时用于decode的buffer,messageReceived完毕后buffer归null
+    private ChannelBuffer buffer;
+
+    // historyBuffer是一个动态的buffer，messageReceived剩下的buffer将被保存到historyBuffer
+    // 新的messageReceived的读入input将合并到historyBuffer中，以供decode
+    private ChannelBuffer historyBuffer;
+
+    private int historyMaxCapacity = 512;
 
     public FrameDecoder3() {
     }
@@ -54,27 +69,29 @@ public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
         if (!input.readable()) {
             return;
         }
-        final ChannelBuffer buffer;
-        if (cumulation != null && cumulation.readable()) {
-            cumulation.discardReadBytes();
-            cumulation.writeBytes(input);
-            buffer = cumulation;
+        if (historyBuffer != null && historyBuffer.readable()) {
+            historyBuffer.writeBytes(input);
+            buffer = historyBuffer;
         } else {
             buffer = input;
         }
         while (true) {
-            if (buffer.readableBytes() < 8) {
+            if (buffer == null || buffer.readableBytes() < 8) {
                 if (buffer == input) {
-                    if (cumulation == null) {
-                        cumulation = ChannelBuffers.dynamicBuffer(//
+                    if (historyBuffer == null) {
+                        historyBuffer = ChannelBuffers.dynamicBuffer(//
+                                historyMaxCapacity, //
                                 ctx.getChannel().getConfig().getBufferFactory());
+                    } else {
+                        historyBuffer.discardReadBytes();
                     }
-                    cumulation.writeBytes(buffer);
+                    historyBuffer.writeBytes(buffer);
                 }
+                buffer = null;
                 return;
             }
             buffer.markReaderIndex();
-            SpdyFrame frame = decode(ctx, buffer);
+            SpdyFrame frame = decode(ctx);
             if (frame == null) {
                 buffer.resetReaderIndex();
             } else {
@@ -83,19 +100,19 @@ public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
         }
     }
 
-    private SpdyFrame decode(ChannelHandlerContext ctx, ChannelBuffer buffer) {
+    private SpdyFrame decode(ChannelHandlerContext ctx) {
         int first = buffer.readByte();
         buffer.resetReaderIndex();
         SpdyFrame frame;
         if (first < 0) {
-            frame = decodeControlFrame(ctx, buffer);
+            frame = decodeControlFrame(ctx);
         } else {
-            frame = decodeDataFrame(ctx, buffer);
+            frame = decodeDataFrame(ctx);
         }
         return frame;
     }
 
-    private ControlFrame decodeControlFrame(ChannelHandlerContext ctx, ChannelBuffer buffer) {
+    private ControlFrame decodeControlFrame(ChannelHandlerContext ctx) {
         int version = -buffer.readShort();
         if (version != 1) {
             throw new IllegalArgumentException("version should be 1");
@@ -121,28 +138,61 @@ public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
         return frame;
     }
 
-    private DataFrame decodeDataFrame(ChannelHandlerContext ctx, ChannelBuffer buffer) {
-        int streamId = buffer.readInt();
-        int flags = buffer.readByte();
-        int length = buffer.readUnsignedMedium();
-        if (buffer.readableBytes() < length) {
+    private DataFrame decodeDataFrame(ChannelHandlerContext ctx) {
+        final ChannelBuffer _buffer = this.buffer;
+        final ChannelBuffer _historyBuffer = this.historyBuffer;
+        int streamId = _buffer.readInt();
+        int flags = _buffer.readByte();
+        int length = _buffer.readUnsignedMedium();
+        if (_buffer.readableBytes() < length) {
             return null;
         }
         DataFrame frame = new DataFrame();
         frame.setStreamId(streamId);
         frame.setFlags(flags);
         frame.setChannel(ctx.getChannel());
-        if (cumulation == buffer) {
-            frame.setData(buffer.copy(buffer.readerIndex(), length));
-        } else {
-            frame.setData(buffer.slice(buffer.readerIndex(), length));
+        // historyBuffer == buffer表示前一次messageReceived还有些数据没解完
+        if (_historyBuffer == _buffer) {
+            // 如果historyBuffer刚好只包含一个这个frame的数据，那就直接用，不copy！
+            if (_historyBuffer.readableBytes() == length) {
+                frame.setData(_buffer);
+                historyMaxCapacity = _historyBuffer.capacity();
+                historyBuffer = null;
+                buffer = null;
+                if (logger.isDebugEnabled()) {
+                    logger.debug("DataFrame(by cumulation.direct): " + frame);
+                }
+                return frame;
+            }
+            // 否则就copy前length部分的数据
+            else {
+                frame.setData(_buffer.copy(_buffer.readerIndex(), length));
+                _buffer.skipBytes(length);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("DataFrame(by cumulation.copy): " + frame);
+                }
+                return frame;
+            }
         }
-        buffer.skipBytes(length);
-        if (logger.isDebugEnabled()) {
-            logger.debug("DataFrame(" //
-                    + (cumulation == buffer ? "c" : "s") + "): " + frame);
+        // 否则表示没有历史牵绊，buffer就是本次messageReceived最新接收的
+        else {
+            if (_buffer.readableBytes() == length) {
+                frame.setData(_buffer);
+                buffer = null;
+                if (logger.isDebugEnabled()) {
+                    logger.debug("DataFrame(by input.direct): " + frame);
+                }
+                return frame;
+            } else {
+                frame.setData(_buffer.slice(_buffer.readerIndex(), length));
+                _buffer.skipBytes(length);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("DataFrame(by input.slice): " + frame);
+                }
+                return frame;
+            }
         }
-        return frame;
+
     }
 
     @Override
