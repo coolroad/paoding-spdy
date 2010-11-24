@@ -1,9 +1,6 @@
 package net.paoding.spdy.common.frame;
 
 import static org.jboss.netty.channel.Channels.write;
-
-import java.util.Arrays;
-
 import net.paoding.spdy.common.frame.frames.ControlFrame;
 import net.paoding.spdy.common.frame.frames.DataFrame;
 
@@ -11,7 +8,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.buffer.CompositeChannelBuffer;
 import org.jboss.netty.channel.ChannelDownstreamHandler;
 import org.jboss.netty.channel.ChannelEvent;
 import org.jboss.netty.channel.ChannelHandler.Sharable;
@@ -85,9 +81,8 @@ public class FrameEncoder implements ChannelDownstreamHandler {
             if (dataLength == 0) {
                 write(ctx, e.getFuture(), head, e.getRemoteAddress());
             } else {
-                ChannelBuffer buffer = new CompositeChannelBuffer(//
-                        head.order(), Arrays.asList(head, data));
-                write(ctx, e.getFuture(), buffer, e.getRemoteAddress());
+                ChannelBuffer wrappedBuffer = ChannelBuffers.wrappedBuffer(head, data);
+                write(ctx, e.getFuture(), wrappedBuffer, e.getRemoteAddress());
             }
             return true;
         }

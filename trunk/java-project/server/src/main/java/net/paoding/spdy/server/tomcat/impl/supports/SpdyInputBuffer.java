@@ -9,12 +9,24 @@ import net.paoding.spdy.common.frame.frames.SpdyFrame;
 
 import org.apache.coyote.InputBuffer;
 import org.apache.coyote.Request;
+import org.apache.juli.logging.Log;
+import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.jboss.netty.buffer.ChannelBuffer;
 
+/**
+ * 
+ * @author qieqie.wang@gmail.com
+ * 
+ */
 public class SpdyInputBuffer implements InputBuffer {
 
-    private List<DataFrame> dataFrames;
+    protected static Log logger = LogFactory.getLog(SpdyInputBuffer.class);
+
+    /**
+     * 还未被读的dataFrames
+     */
+    private List<DataFrame> unreadDataFrames;
 
     private boolean flagFin = false;
 
@@ -26,16 +38,18 @@ public class SpdyInputBuffer implements InputBuffer {
         }
     }
 
-    public synchronized void addDataFrame(DataFrame dataFrame) {
-        if (flagFin) {
-            throw new IllegalStateException();
-        }
-        if (dataFrames == null) {
-            dataFrames = new LinkedList<DataFrame>();
-        }
-        this.dataFrames.add(dataFrame);
-        if (dataFrame.getFlags() == SpdyFrame.FLAG_FIN) {
-            flagFin = true;
+    public void addDataFrame(DataFrame dataFrame) {
+        synchronized (this) {
+            if (flagFin) {
+                throw new IllegalStateException("finished");
+            }
+            if (unreadDataFrames == null) {
+                unreadDataFrames = new LinkedList<DataFrame>();
+            }
+            this.unreadDataFrames.add(dataFrame);
+            if (dataFrame.getFlags() == SpdyFrame.FLAG_FIN) {
+                flagFin = true;
+            }
         }
     }
 
@@ -50,25 +64,31 @@ public class SpdyInputBuffer implements InputBuffer {
     @Override
     public int doRead(ByteChunk chunk, Request request) throws IOException {
         if (reset) {
-            throw new IOException("reset");
+            // 通知调用者，该请求已经被reset
+            throw new IOException("has been reset");
         }
-        DataFrame dataFrame = null;
+        DataFrame dataFrame;
         synchronized (this) {
-            if (dataFrames == null || dataFrames.size() == 0) {
+            if (unreadDataFrames == null || unreadDataFrames.size() == 0) {
                 if (flagFin) {
+                    // end of buffer
                     return -1;
                 } else {
+                    // read zero 
                     return 0;
                 }
             }
-            dataFrame = dataFrames.remove(0);
+            dataFrame = unreadDataFrames.remove(0);
         }
-        ChannelBuffer frame = dataFrame.getData();
-        int readableBytes = frame.readableBytes();
+        ChannelBuffer data = dataFrame.getData();
+        if (logger.isDebugEnabled()) {
+            logger.debug("reading " + dataFrame);
+        }
+        int readableBytes = data.readableBytes();
         if (readableBytes == 0) {
             return 0;
         }
-        chunk.setBytes(frame.array(), frame.readerIndex(), readableBytes);
+        chunk.setBytes(data.array(), data.readerIndex(), readableBytes);
         return readableBytes;
     }
 

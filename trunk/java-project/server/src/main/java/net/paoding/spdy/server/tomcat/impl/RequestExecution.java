@@ -1,5 +1,6 @@
 package net.paoding.spdy.server.tomcat.impl;
 
+import static org.apache.coyote.ActionCode.ACTION_CLIENT_FLUSH;
 import static org.apache.coyote.ActionCode.ACTION_CLOSE;
 import static org.apache.coyote.ActionCode.ACTION_COMMIT;
 
@@ -8,6 +9,7 @@ import java.lang.reflect.Modifier;
 import java.util.concurrent.ExecutorService;
 
 import net.paoding.spdy.server.tomcat.impl.hook.Action;
+import net.paoding.spdy.server.tomcat.impl.hook.ClientFlush;
 import net.paoding.spdy.server.tomcat.impl.hook.Close;
 import net.paoding.spdy.server.tomcat.impl.hook.Commit;
 import net.paoding.spdy.server.tomcat.impl.supports.SpdyOutputBuffer;
@@ -19,6 +21,7 @@ import org.apache.coyote.Request;
 import org.apache.coyote.Response;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import org.jboss.netty.buffer.ChannelBufferFactory;
 import org.jboss.netty.channel.ChannelHandler.Sharable;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
@@ -38,9 +41,12 @@ public class RequestExecution extends SimpleChannelHandler {
 
     private ExecutorService requstExecutor;
 
-    public RequestExecution(ExecutorService executor, Adapter adapter) {
+    private int ouputBufferSize;
+
+    public RequestExecution(ExecutorService executor, Adapter adapter, int ouputBufferSize) {
         this.requstExecutor = executor;
         this.coyoteAdapter = adapter;
+        this.ouputBufferSize = ouputBufferSize;
     }
 
     @Override
@@ -48,7 +54,8 @@ public class RequestExecution extends SimpleChannelHandler {
         Object msg = e.getMessage();
         if (msg instanceof Request) {
             final Request request = (Request) msg;
-            final Response response = createResponse(request);
+            final Response response = createResponse(request, e.getChannel().getConfig()
+                    .getBufferFactory());
             requstExecutor.submit(new Runnable() {
 
                 @Override
@@ -65,12 +72,12 @@ public class RequestExecution extends SimpleChannelHandler {
         }
     }
 
-    private Response createResponse(Request request) {
+    private Response createResponse(Request request, ChannelBufferFactory factory) {
         Response response = new Response();
         request.setResponse(response);
         response.setRequest(request);
         response.setHook(new HookDelegate(request, response));
-        response.setOutputBuffer(new SpdyOutputBuffer());
+        response.setOutputBuffer(new SpdyOutputBuffer(factory, ouputBufferSize));
         return response;
     }
 
@@ -81,9 +88,10 @@ public class RequestExecution extends SimpleChannelHandler {
         private static Field[] codeFields = new Field[50]; // now is 25
 
         static {
-            // 
+            //
             actions[ACTION_COMMIT.getCode()] = new Commit();
             actions[ACTION_CLOSE.getCode()] = new Close();
+            actions[ACTION_CLIENT_FLUSH.getCode()] = new ClientFlush();
 
             Field[] fields = ActionCode.class.getFields();
             for (Field field : fields) {
@@ -114,10 +122,10 @@ public class RequestExecution extends SimpleChannelHandler {
         public void action(ActionCode actionCode, Object param) {
             Action action = actions[actionCode.getCode()];
             if (action != null) {
-                action.action(request, response, param);
                 if (logger.isDebugEnabled()) {
                     logger.debug("suck " + codeFields[actionCode.getCode()].getName());
                 }
+                action.action(request, response, param);
             } else {
                 if (logger.isDebugEnabled()) {
                     logger.debug("ignores " + codeFields[actionCode.getCode()].getName());
