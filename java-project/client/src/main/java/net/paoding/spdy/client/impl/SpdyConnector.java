@@ -5,6 +5,7 @@ import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import net.paoding.spdy.client.Connector;
@@ -54,11 +55,11 @@ public class SpdyConnector implements Connector, PingListener {
 
     ExpireWheel<HttpFutureImpl<Ping>> pingRequests = new ExpireWheel<HttpFutureImpl<Ping>>(256, 1);
 
-    protected final Executor executor;
+    protected final ExecutorService executor;
 
     private CloseFuture closeFuture;
 
-    public SpdyConnector(Executor futureExecutor, String hostport) {
+    public SpdyConnector(ExecutorService futureExecutor, String hostport) {
         this.executor = futureExecutor;
         int index = hostport.indexOf(':');
         if (index == 0) {
@@ -70,7 +71,7 @@ public class SpdyConnector implements Connector, PingListener {
         }
     }
 
-    public SpdyConnector(Executor executor, String host, int port) {
+    public SpdyConnector(ExecutorService executor, String host, int port) {
         this.executor = executor;
         init(host, port);
     }

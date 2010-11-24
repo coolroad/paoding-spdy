@@ -16,6 +16,7 @@ import net.paoding.spdy.server.tomcat.impl.RequestDecoder;
 import net.paoding.spdy.server.tomcat.impl.RequestExecution;
 import net.paoding.spdy.server.tomcat.impl.subscription.SubscriptionEncoder;
 import net.paoding.spdy.server.tomcat.impl.subscription.SubscriptionFactoryImpl;
+import net.paoding.spdy.server.tomcat.impl.supports.SpdyOutputBuffer;
 
 import org.apache.coyote.Adapter;
 import org.apache.coyote.ProtocolHandler;
@@ -67,6 +68,8 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
     private PingListener pingListener;
 
     private Map<String, Object> attributes = new HashMap<String, Object>();
+
+    private int ouputBufferSize = 1024;
 
     /**
      * 
@@ -125,6 +128,16 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
             this.sharedExecutor = false;
         }
         return executor;
+    }
+
+    /**
+     * (可选设置项)设置data缓冲大小，默认是1024bytes
+     * 
+     * @see SpdyOutputBuffer
+     * @param ouputBufferSize
+     */
+    public void setOuputBufferSize(int ouputBufferSize) {
+        this.ouputBufferSize = ouputBufferSize;
     }
 
     @Override
@@ -189,7 +202,8 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
 
             SimpleChannelHandler pingExecution = new PingExecution(getExecutor(), pingListener);
 
-            SimpleChannelHandler requestExecution = new RequestExecution(getExecutor(), adapter);
+            SimpleChannelHandler requestExecution = new RequestExecution(getExecutor(), adapter,
+                    ouputBufferSize);
 
             @Override
             public ChannelPipeline getPipeline() throws Exception {

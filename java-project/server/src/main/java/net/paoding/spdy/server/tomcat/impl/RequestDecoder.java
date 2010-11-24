@@ -74,11 +74,9 @@ public class RequestDecoder extends SimpleChannelHandler {
             } else {
                 if (syn.getFlags() != SpdyFrame.FLAG_FIN) {
                     requests.put(syn.getStreamId(), request);
+                } else {
+                    fireRequest(ctx, e, request);
                 }
-                if (logger.isInfoEnabled()) {
-                    logger.info("Request: " + request);
-                }
-                fireMessageReceived(ctx, request, e.getRemoteAddress());
                 return;
             }
         } else if (msg instanceof DataFrame) {
@@ -90,14 +88,14 @@ public class RequestDecoder extends SimpleChannelHandler {
             } else {
                 SpdyInputBuffer ib = (SpdyInputBuffer) request.getInputBuffer();
                 ib.addDataFrame(frame);
-                if (ib.isFlagFin()) {
+                if (frame.getFlags() == SpdyFrame.FLAG_FIN) {
                     requests.remove(frame.getStreamId());
+                    fireRequest(ctx, e, request);
                 }
             }
             return;
         } else if (msg instanceof RstStream) {
             RstStream frame = (RstStream) msg;
-            requests.remove(frame.getStreamId());
             Request request = requests.get(frame.getStreamId());
             if (request == null) {
                 // bad!
@@ -114,6 +112,13 @@ public class RequestDecoder extends SimpleChannelHandler {
         }
     }
 
+    private void fireRequest(ChannelHandlerContext ctx, MessageEvent e, Request request) {
+        if (logger.isInfoEnabled()) {
+            logger.info("Request: " + request);
+        }
+        fireMessageReceived(ctx, request, e.getRemoteAddress());
+    }
+
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
         subscriptionFactory.close();
@@ -123,8 +128,7 @@ public class RequestDecoder extends SimpleChannelHandler {
     private Request decode(SynStream synStream) throws URISyntaxException {
         Request request = new Request();
         request.setStartTime(synStream.getTimestamp());
-        CoyoteAttributes.setStreamId(request, synStream.getStreamId());
-        CoyoteAttributes.setChannel(request, synStream.getChannel());
+        CoyoteAttributes.setSynStream(request, synStream);
         //
         String method = synStream.getHeader("method");
         String url = synStream.getHeader("url");

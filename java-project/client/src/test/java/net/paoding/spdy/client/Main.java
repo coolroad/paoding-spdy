@@ -1,7 +1,7 @@
 package net.paoding.spdy.client;
 
 import java.io.IOException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import net.paoding.spdy.client.impl.SpdyConnector;
@@ -12,15 +12,15 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 public class Main {
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        Executor executor = Executors.newCachedThreadPool();
-        
+        ExecutorService executor = Executors.newCachedThreadPool();
+
         ConnectorFuture connecting = new SpdyConnector(executor, "localhost:8081").connect();
         Connector connector = connecting.awaitUninterruptibly().getConnector();
         //        //
-        HttpRequest request = new DefaultHttpRequest("get", "/the8/test");
+        HttpRequest request = new DefaultHttpRequest("post", "/the8/test");
         HttpParameters parameters = new HttpParameters();
         setParameters(args, parameters).copyTo(request);
-        
+
         //
         HttpFuture<HttpResponse> responseFuture = connector.doRequest(request);
         responseFuture.awaitUninterruptibly();
@@ -32,6 +32,8 @@ public class Main {
         //
         System.out.println();
         if (true) {
+            connector.close().awaitUninterruptibly();
+            System.out.println("closed");
             return;
         }
 
@@ -61,7 +63,7 @@ public class Main {
     }
 
     public static void main1(String[] args) throws IOException {
-        Executor executor = Executors.newCachedThreadPool();
+        ExecutorService executor = Executors.newCachedThreadPool();
         //
         ConnectorFuture connecting = new SpdyConnector(executor, "localhost:8081").connect();
         Connector connector = connecting.awaitUninterruptibly().getConnector();
@@ -93,7 +95,7 @@ public class Main {
     }
 
     public static void main0(String[] args) throws IOException {
-        Executor executor = Executors.newCachedThreadPool();
+        ExecutorService executor = Executors.newCachedThreadPool();
         ConnectorFuture connectFuture = new SpdyConnector(executor, "localhost:1234").connect();
         Connector connection = connectFuture.awaitUninterruptibly().getTarget();
         //

@@ -21,9 +21,10 @@ public class Commit implements Action {
 
     @Override
     public void action(Request request, Response response, Object param) {
-        if (response.isCommitted()) {
-            return;
-        }
+        commit(request, response);
+    }
+
+    private void commit(Request request, Response response) {
         if (logger.isDebugEnabled()) {
             logger.debug("commiting response: " + request);
         }
@@ -50,6 +51,9 @@ public class Commit implements Action {
         if (contentLength == 0) {
             frame.setFlags(SpdyFrame.FLAG_FIN);
             CoyoteAttributes.setFinished(response);
+            if (logger.isInfoEnabled()) {
+                logger.info("closing response (by commit): " + response.getRequest());
+            }
         }
 
         MimeHeaders coyoteHeaders = response.getMimeHeaders();

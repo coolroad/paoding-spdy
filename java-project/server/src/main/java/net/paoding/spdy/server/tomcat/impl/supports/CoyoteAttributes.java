@@ -1,29 +1,31 @@
 package net.paoding.spdy.server.tomcat.impl.supports;
 
+import net.paoding.spdy.common.frame.frames.SynStream;
+
 import org.apache.coyote.Request;
 import org.apache.coyote.Response;
 import org.jboss.netty.channel.Channel;
 
 public class CoyoteAttributes {
 
-    public static void setStreamId(Request request, int streamId) {
-        request.setAttribute("net.paoding.spdy.streamId", streamId);
+    public static void setSynStream(Request request, SynStream SynStream) {
+        request.setAttribute("net.paoding.spdy.synStream", SynStream);
+    }
+
+    public static SynStream getSynStream(Request request) {
+        return (SynStream) request.getAttribute("net.paoding.spdy.synStream");
     }
 
     public static int getStreamId(Request request) {
-        return (Integer) request.getAttribute("net.paoding.spdy.streamId");
+        return getSynStream(request).getStreamId();
     }
 
     public static int getStreamId(Response response) {
         return getStreamId(response.getRequest());
     }
 
-    public static void setChannel(Request request, Channel channel) {
-        request.setAttribute("net.paoding.spdy.channel", channel);
-    }
-
     public static Channel getChannel(Request request) {
-        return (Channel) request.getAttribute("net.paoding.spdy.channel");
+        return (Channel) getSynStream(request).getChannel();
     }
 
     public static Channel getChannel(Response response) {
