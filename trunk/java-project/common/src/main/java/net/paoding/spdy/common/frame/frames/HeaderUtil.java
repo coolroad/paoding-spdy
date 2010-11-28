@@ -4,6 +4,8 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 
 /**
@@ -12,9 +14,11 @@ import org.jboss.netty.buffer.ChannelBuffer;
  * @author qieqie.wang@gmail.com
  * 
  */
-public class Header {
+public class HeaderUtil {
 
     private static Charset utf8 = Charset.forName("utf8");
+
+    private final static Log logger = LogFactory.getLog(HeaderUtil.class);
 
     /**
      * 解码
@@ -24,7 +28,10 @@ public class Header {
      */
     public static Map<String, String> decode(ChannelBuffer buffer) {
         int size = buffer.readUnsignedShort();
-        //        System.out.println("Header.decode headers.size=" + size);
+        boolean debugEnabled = logger.isDebugEnabled();
+        if (debugEnabled) {
+            logger.debug("decoding: headers.size=" + size);
+        }
         Map<String, String> pairs = new HashMap<String, String>(size);
         for (int i = 0; i < size; i++) {
             int nameLength = buffer.readUnsignedShort();
@@ -35,8 +42,10 @@ public class Header {
             String value = new String(buffer.array(), buffer.readerIndex(), valueLength, utf8);
             buffer.skipBytes(valueLength);
             pairs.put(name, value);
-            //            System.out.println("Header.decode put " + name + "(" + nameLength + ")=" + value + "("
-            //                    + valueLength + ")");
+            if (debugEnabled) {
+                logger.debug("decoding: [" + (i + 1) + "/" + size + "] " + name + "='" + value
+                        + "'");
+            }
         }
         return pairs;
     }
@@ -49,6 +58,11 @@ public class Header {
      */
     public static void encode(Map<String, String> headers, ChannelBuffer buffer) {
         buffer.writeShort(headers.size());
+        boolean debugEnabled = logger.isDebugEnabled();
+        if (debugEnabled) {
+            logger.debug("encoding: headers.size=" + headers.size());
+        }
+        int index = 0;
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             String keyString = entry.getKey().trim();
             byte[] key = keyString.getBytes(utf8);
@@ -57,9 +71,19 @@ public class Header {
             buffer.writeBytes(key);
             buffer.writeShort(value.length);
             buffer.writeBytes(value);
-            //            System.out.println("Header.encode " + keyString + "(" + key.length + ")="
-            //                    + entry.getValue() + " (" + value.length + ")");
+            if (debugEnabled) {
+                index++;
+                logger.debug("encoding: [" + index + "/" + headers.size() + "] " + keyString + "='"
+                        + entry.getValue() + "'");
+            }
         }
+    }
+
+    public static int estimatedLength(Map<String, String> headers) {
+        if (headers == null || headers.size() == 0) {
+            return 0;
+        }
+        return headers.size() << 5; //32 = (2shorts+key+value);
     }
 
 }

@@ -1,7 +1,6 @@
 package net.paoding.spdy.client.impl;
 
 import java.util.Map;
-import java.util.concurrent.Executor;
 
 import net.paoding.spdy.common.frame.frames.DataFrame;
 import net.paoding.spdy.common.frame.frames.SpdyFrame;
@@ -9,88 +8,116 @@ import net.paoding.spdy.common.frame.frames.StreamFrame;
 import net.paoding.spdy.common.frame.frames.SynReply;
 import net.paoding.spdy.common.frame.frames.SynStream;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelEvent;
 import org.jboss.netty.channel.ChannelHandler.Sharable;
 import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.ChannelUpstreamHandler;
+import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpVersion;
-import org.jboss.netty.handler.codec.oneone.OneToOneDecoder;
 
+/**
+ * 接受服务器下发的各种frame，解析为response对象，并提交给executor通知源操作的future告知成功
+ * 
+ * @author qieqie.wang@gmail.com
+ * 
+ */
 @Sharable
-public class ResponseExecution extends OneToOneDecoder {
+public class ResponseExecution implements ChannelUpstreamHandler {
 
-    private SpdyConnector connection;
+    private static Log logger = LogFactory.getLog(ResponseExecution.class);
 
-    private Executor executor;
+    private NettyConnector connector;
 
-    public ResponseExecution(Executor executor, SpdyConnector spdyConnection) {
-        this.executor = executor;
-        this.connection = spdyConnection;
+    public ResponseExecution(NettyConnector connector) {
+        this.connector = connector;
     }
 
     @Override
-    protected Object decode(ChannelHandlerContext ctx, Channel channel, Object msg)
-            throws Exception {
-        if (msg instanceof StreamFrame) {
-            int streamId = ((StreamFrame) msg).getStreamId();
-            HttpResponseFuture responseFuture = connection.httpRequests.get(streamId);
-            if (msg instanceof SynStream) {
-                SynStream syn = (SynStream) msg;
-                if (syn.getFlags() == SpdyFrame.FLAG_UNIDIRECTIONAL) {
-                    final SubscriptionImpl sub = connection.subscriptions
-                            .get(syn.getAssociatedId());
-                    if (sub != null) {
-                        HttpResponseFuture future = new HttpResponseFuture(connection, sub, false);
-                        future.addListener(sub.listener);
-                        connection.httpRequests.put(streamId, future);
-                        doWithSynStream(future, syn);
-                        return null;
-                    }
-                }
+    public void handleUpstream(ChannelHandlerContext ctx, ChannelEvent evt) throws Exception {
+        if (!(evt instanceof MessageEvent)) {
+            ctx.sendUpstream(evt);
+            return;
+        }
+
+        MessageEvent e = (MessageEvent) evt;
+        Object msg = e.getMessage();
+        if (!(msg instanceof StreamFrame)) {
+            ctx.sendUpstream(evt);
+            return;
+        }
+        final StreamFrame frame = (StreamFrame) msg;
+        final int streamId = frame.getStreamId();
+        final HttpResponseFuture future;
+        // (客户端)接收到单向的synStream代表有一个server push过来了！
+        if (msg instanceof SynStream) {
+            future = doWithSynFrame(streamId, (SynStream) msg);
+            if (future != null) {
+                // serverpush时要把future注册到requests中，使得后续的dataframe能够正确塞出来
+                // XXX:放进来到futures的这个future会不会和客户端的future frameId相同，从而互相覆盖而郁闷？
+                // 不会!因为服务器端来的streamId和客户端发送的frameId奇偶性质不一样，不会互相覆盖
+                connector.requests.put(streamId, future);
             }
-            responseFuture = connection.httpRequests.get(streamId);
-            if (responseFuture == null) {
-                return null;
-            }
-            if (msg instanceof SynReply) {
-                doWithSynReply(responseFuture, (SynReply) msg);
-            } else if (msg instanceof DataFrame) {
-                doWithDataFrame(responseFuture, (DataFrame) msg);
-            }
-            return null;
         } else {
-            return msg;
-        }
-    }
-
-    private void doWithDataFrame(final HttpResponseFuture responseFuture, DataFrame frame) {
-        HttpResponse response = responseFuture.getTarget();
-        ChannelBuffer content = response.getContent();
-        if (frame.getData().readable()) {
-            if (content.array().length == 0) {
-                response.setContent(frame.getData());
+            // 
+            future = connector.requests.get(streamId);
+            if (future == null) {
+                logger.warn("not found future for " + msg);
             } else {
-                content = ChannelBuffers.wrappedBuffer(content, frame.getData());
-                response.setContent(content);
+                if (msg instanceof SynReply) {
+                    doWithSynReply(future, (SynReply) msg);
+                } else if (msg instanceof DataFrame) {
+                    doWithDataFrame(future, (DataFrame) msg);
+                }
             }
         }
-        if (frame.getFlags() == SpdyFrame.FLAG_FIN) {
-            connection.httpRequests.remove(frame.getStreamId());
-            executor.execute(new Runnable() {
-
-                @Override
-                public void run() {
-                    responseFuture.setSuccess();
-                }
-            });
+        if (future != null && frame.getFlags() == SpdyFrame.FLAG_FIN) {
+            connector.requests.remove(streamId);
+            future.setSuccess();
         }
     }
 
-    private void doWithSynReply(final HttpResponseFuture responseFuture, SynReply reply) {
+    private HttpResponseFuture doWithSynFrame(int streamId, SynStream syn) {
+        if (syn.getFlags() == SpdyFrame.FLAG_UNIDIRECTIONAL) {
+            SubscriptionImpl subscription = connector.subscriptions.get(syn.getAssociatedId());
+            if (subscription != null) {
+                final HttpResponseFuture f = new HttpResponseFuture(connector, subscription, false);
+                f.addListener(subscription.listener);
+                HttpResponseStatus status = new HttpResponseStatus(200, "OK");
+                HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
+                for (Map.Entry<String, String> header : syn.getHeaders().entrySet()) {
+                    String name = header.getKey();
+                    if (name.equals("version") || name.equals("status")) {
+                        continue;
+                    }
+                    response.setHeader(name, header.getValue());
+                }
+                f.setTarget(response);
+                return f;
+            } else {
+                logger.warn("not found subscription for SynFrame:" + syn + "  url="
+                        + syn.getHeader("url"));
+            }
+        } else {
+            logger.warn("wrong SynFrame from server: should be unidirectional " + syn + "  url="
+                    + syn.getHeader("url"));
+        }
+        return null;
+    }
+
+    /**
+     * 处理SynReply帧
+     * 
+     * @param f
+     * @param reply
+     */
+    private void doWithSynReply(final HttpResponseFuture f, SynReply reply) {
         HttpVersion version = HttpVersion.valueOf(reply.getHeader("version"));
         String statusline = reply.getHeader("status");
         int statusCode;
@@ -104,7 +131,6 @@ public class ResponseExecution extends OneToOneDecoder {
         }
         HttpResponseStatus status = new HttpResponseStatus(statusCode, reasonPhrase);
         HttpResponse response = new DefaultHttpResponse(version, status);
-        responseFuture.setTarget(response);
         for (Map.Entry<String, String> header : reply.getHeaders().entrySet()) {
             String name = header.getKey();
             if (name.equals("version") || name.equals("status")) {
@@ -112,38 +138,27 @@ public class ResponseExecution extends OneToOneDecoder {
             }
             response.setHeader(name, header.getValue());
         }
-        if (reply.getFlags() == SpdyFrame.FLAG_FIN) {
-            connection.httpRequests.remove(reply.getStreamId());
-            executor.execute(new Runnable() {
-
-                @Override
-                public void run() {
-                    responseFuture.setSuccess();
-                }
-            });
-        }
+        // 将repsonse设置为future的target
+        f.setTarget(response);
     }
 
-    private void doWithSynStream(final HttpResponseFuture responseFuture, SynStream syn) {
-        HttpResponseStatus status = new HttpResponseStatus(200, "OK");
-        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
-        responseFuture.setTarget(response);
-        for (Map.Entry<String, String> header : syn.getHeaders().entrySet()) {
-            String name = header.getKey();
-            if (name.equals("version") || name.equals("status")) {
-                continue;
+    /**
+     * 处理DataFrame
+     * 
+     * @param f
+     * @param frame
+     */
+    private void doWithDataFrame(final HttpResponseFuture f, DataFrame frame) {
+        HttpResponse response = f.getTarget();
+        ChannelBuffer content = response.getContent();
+        if (frame.getData().readable()) {
+            if (content.array().length == 0) {
+                response.setContent(frame.getData());
+            } else {
+                content = ChannelBuffers.wrappedBuffer(content, frame.getData());
+                response.setContent(content);
             }
-            response.setHeader(name, header.getValue());
-        }
-        if (syn.getFlags() == SpdyFrame.FLAG_FIN) {
-            connection.httpRequests.remove(syn.getStreamId());
-            executor.execute(new Runnable() {
-
-                @Override
-                public void run() {
-                    responseFuture.setSuccess();
-                }
-            });
         }
     }
+
 }

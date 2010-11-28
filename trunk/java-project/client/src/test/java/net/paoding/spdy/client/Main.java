@@ -1,10 +1,8 @@
 package net.paoding.spdy.client;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import net.paoding.spdy.client.impl.SpdyConnector;
+import net.paoding.spdy.client.impl.NettyConnectorFactory;
 
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -12,9 +10,8 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 public class Main {
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        ExecutorService executor = Executors.newCachedThreadPool();
-
-        ConnectorFuture connecting = new SpdyConnector(executor, "localhost:8081").connect();
+        NettyConnectorFactory factory = new NettyConnectorFactory();
+        HttpFuture<Connector> connecting = factory.get("localhost", 8081).connect();
         Connector connector = connecting.awaitUninterruptibly().getConnector();
         //        //
         HttpRequest request = new DefaultHttpRequest("post", "/the8/test");
@@ -63,9 +60,8 @@ public class Main {
     }
 
     public static void main1(String[] args) throws IOException {
-        ExecutorService executor = Executors.newCachedThreadPool();
-        //
-        ConnectorFuture connecting = new SpdyConnector(executor, "localhost:8081").connect();
+        ConnectorFactory factory = new NettyConnectorFactory();
+        HttpFuture<Connector> connecting = factory.get("localhost", 8081).connect();
         Connector connector = connecting.awaitUninterruptibly().getConnector();
         //
         HttpRequest request = new DefaultHttpRequest("get", "/the8/test");
@@ -95,9 +91,9 @@ public class Main {
     }
 
     public static void main0(String[] args) throws IOException {
-        ExecutorService executor = Executors.newCachedThreadPool();
-        ConnectorFuture connectFuture = new SpdyConnector(executor, "localhost:1234").connect();
-        Connector connection = connectFuture.awaitUninterruptibly().getTarget();
+        ConnectorFactory factory = new NettyConnectorFactory();
+        HttpFuture<Connector> connecting = factory.get("localhost", 8081).connect();
+        Connector connection = connecting.awaitUninterruptibly().getTarget();
         //
         HttpRequest request = new DefaultHttpRequest("GET", "/blog/123456");
         HttpParameters parameters = new HttpParameters();

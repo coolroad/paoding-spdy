@@ -21,9 +21,9 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 @Sharable
 public class RequestEncoder extends SimpleChannelHandler {
 
-    private SpdyConnector connection;
+    private NettyConnector connection;
 
-    public RequestEncoder(SpdyConnector spdyConnection) {
+    public RequestEncoder(NettyConnector spdyConnection) {
         this.connection = spdyConnection;
     }
 
@@ -86,7 +86,7 @@ public class RequestEncoder extends SimpleChannelHandler {
             } else if (url.charAt(0) != '/') {
                 url = "/" + url;
             }
-            url = connection.getUriPrefix() + url;
+            url = connection.getUrlPrefix() + url;
         }
         return url;
     }

@@ -173,6 +173,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
         allChannels.add(e.getChannel());
     }
 
+    // TODO: 客户端如果是强制关闭，如何通知服务器有关他的订阅已经无效？
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
         allChannels.remove(e.getChannel());
@@ -200,7 +201,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
 
             SimpleChannelHandler subscriptionEncoder = new SubscriptionEncoder();
 
-            SimpleChannelHandler pingExecution = new PingExecution(getExecutor(), pingListener);
+            SimpleChannelHandler pingExecution = new PingExecution(pingListener);
 
             SimpleChannelHandler requestExecution = new RequestExecution(getExecutor(), adapter,
                     ouputBufferSize);

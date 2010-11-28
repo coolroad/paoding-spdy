@@ -12,7 +12,7 @@ import org.jboss.netty.buffer.ChannelBuffer;
  * @author qieqie.wang
  * 
  */
-public class SynReply extends ControlFrame implements StreamFrame {
+public class SynReply extends ControlFrame implements HeaderStreamFrame {
 
     /** SYN_REPLY的类型值 */
     public static final int TYPE = 2;
@@ -36,14 +36,17 @@ public class SynReply extends ControlFrame implements StreamFrame {
         this.streamId = streamId;
     }
 
+    @Override
     public Map<String, String> getHeaders() {
         return headers;
     }
 
+    @Override
     public void setHeaders(Map<String, String> headers) {
         this.headers = headers;
     }
 
+    @Override
     public String getHeader(String name) {
         return headers.get(name);
     }
@@ -52,14 +55,14 @@ public class SynReply extends ControlFrame implements StreamFrame {
     public void decodeData(ChannelBuffer buffer) {
         this.streamId = Math.abs(buffer.readInt());
         buffer.skipBytes(2); // Unused
-        this.headers = Header.decode(buffer);
+        this.headers = HeaderUtil.decode(buffer);
     }
 
     @Override
     public void encodeData(ChannelBuffer buffer) {
         buffer.writeInt(streamId);
         buffer.writeShort(0);
-        Header.encode(headers, buffer);
+        HeaderUtil.encode(headers, buffer);
     }
 
     @Override

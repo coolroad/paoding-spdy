@@ -26,9 +26,14 @@ public class SubscriptionFactoryImpl implements SubscriptionFactory {
 
     @Override
     public ServerSubscription createSubscription(SynStream syn) {
-        ServerSubscriptionImpl sub = new ServerSubscriptionImpl(this, syn);
-        subscriptions.put(syn.getStreamId(), sub);
-        return sub;
+        return new ServerSubscriptionImpl(this, syn);
+    }
+
+    public void register(ServerSubscriptionImpl subscription) {
+        if (subscription.getFactory() != this) {
+            throw new IllegalStateException("wrong factory");
+        }
+        subscriptions.put(subscription.getAssociatedId(), subscription);
     }
 
     @Override
