@@ -15,20 +15,6 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 public interface Connector {
 
     /**
-     * 远程服务建立连接，使可以发送请求
-     * 
-     * @throws IllegalStateException 如果已经连接过
-     */
-    HttpFuture<Connector> connect();
-
-    /**
-     * 返回连接操作的future对象
-     * 
-     * @see #connect()
-     */
-    HttpFuture<Connector> getConnectFuture();
-
-    /**
      * 当时是否处于连接状态
      */
     boolean isConnected();

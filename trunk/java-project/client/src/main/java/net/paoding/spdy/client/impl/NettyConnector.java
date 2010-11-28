@@ -1,6 +1,5 @@
 package net.paoding.spdy.client.impl;
 
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,13 +43,10 @@ public class NettyConnector implements Connector, PingListener {
 
     // 连接及其相关对象
 
-    final NettyConnectorFactory factory;
+    final NettyBootstrap factory;
 
     /** 该连接所使用的channel */
     private Channel channel;
-
-    /** {@link #connect()} 操作的future对象 */
-    private HttpFutureImpl<Connector> connectFuture;
 
     /** {@link #close()} 操作的future对象 */
     private CloseFuture closeFuture;
@@ -77,7 +73,7 @@ public class NettyConnector implements Connector, PingListener {
      * @param hostport "host:ip" the host&port of remote service
      * @see #connect()
      */
-    public NettyConnector(NettyConnectorFactory factory, String hostport) {
+    public NettyConnector(NettyBootstrap factory, String hostport) {
         this.factory = factory;
         int index = hostport.indexOf(':');
         if (index == 0) {
@@ -98,7 +94,7 @@ public class NettyConnector implements Connector, PingListener {
      * @param port the port of remote service
      * @see #connect()
      */
-    public NettyConnector(NettyConnectorFactory factory, String host, int port) {
+    public NettyConnector(NettyBootstrap factory, String host, int port) {
         this.factory = factory;
         setHostPort(host, port);
     }
@@ -155,16 +151,11 @@ public class NettyConnector implements Connector, PingListener {
         return channel == null ? null : channel.getRemoteAddress();
     }
 
-    @Override
-    public HttpFuture<Connector> connect() {
+    void setChannelFuture(ChannelFuture future) {
         if (channel != null) {
             throw new IllegalStateException();
         }
-        SocketAddress remoteAddress = new InetSocketAddress(host, port);
-        ChannelFuture future = factory.connect(this, remoteAddress);
         channel = future.getChannel();
-        connectFuture = new HttpFutureImpl<Connector>(this, future);
-        connectFuture.setTarget(this);
         closeFuture = new CloseFuture(this, future);
         closeFuture.setTarget(this);
         channel.getCloseFuture().addListener(new ChannelFutureListener() {
@@ -174,12 +165,6 @@ public class NettyConnector implements Connector, PingListener {
                 closeFuture.setClosed();
             }
         });
-        return connectFuture;
-    }
-
-    @Override
-    public HttpFuture<Connector> getConnectFuture() {
-        return connectFuture;
     }
 
     @Override
