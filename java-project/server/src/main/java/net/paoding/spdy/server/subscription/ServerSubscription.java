@@ -16,7 +16,11 @@ public interface ServerSubscription {
 
     public boolean isClosed();
 
+    public void accept();
+
     public void setClosed();
 
     public void addListener(SubscriptionListener listener);
+
+    boolean isAccepted();
 }

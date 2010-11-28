@@ -13,6 +13,7 @@ import org.apache.coyote.Response;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferFactory;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channels;
 
 /**
@@ -118,7 +119,8 @@ public class SpdyOutputBuffer implements OutputBuffer {
         if (logger.isDebugEnabled()) {
             logger.debug("creating a new buffer");
         }
-        buffer = channelBufferFactory.getBuffer(Math.max(minLimit, bufferSize));
+        buffer = ChannelBuffers.buffer(//
+                channelBufferFactory.getDefaultOrder(), Math.max(minLimit, bufferSize));
     }
 
     private DataFrame createDataFrame(Response response, ChannelBuffer data) {

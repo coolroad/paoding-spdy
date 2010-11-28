@@ -26,6 +26,8 @@ public class ServerSubscriptionImpl implements ServerSubscription {
 
     private boolean closed;
 
+    private boolean accepted;
+
     private final String uriPrefix;
 
     private static int nextStreamId = 2;
@@ -36,6 +38,10 @@ public class ServerSubscriptionImpl implements ServerSubscription {
             nextStreamId = 2;
         }
         return nextStreamId;
+    }
+
+    public SubscriptionFactoryImpl getFactory() {
+        return factory;
     }
 
     private Listeners<SubscriptionListener> listeners = new Listeners<SubscriptionListener>(false) {
@@ -92,11 +98,26 @@ public class ServerSubscriptionImpl implements ServerSubscription {
 
     @Override
     public void push(Message message) {
+        if (!accepted) {
+            throw new IllegalStateException("the subscription has not yet been accepted.");
+        }
         SpdyMessage spdyMessage = new SpdyMessage(uriPrefix);
         spdyMessage.setMessage(message);
         spdyMessage.setAssociatedId(associatedId);
         spdyMessage.setStreamId(nextStreamId());
         Channels.write(channel, spdyMessage);
+    }
+
+    // TODO: accept有问题；应该只有在accept后，这个类才保存channel等对象？以免被错误一直保存住，从而内存内存泄漏
+    @Override
+    public void accept() {
+        factory.register(this);
+        accepted = true;
+    }
+
+    @Override
+    public boolean isAccepted() {
+        return accepted;
     }
 
     @Override

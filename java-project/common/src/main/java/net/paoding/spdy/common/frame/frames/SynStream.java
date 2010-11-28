@@ -12,7 +12,7 @@ import org.jboss.netty.buffer.ChannelBuffer;
  * @author qieqie.wang@gmail.com
  * 
  */
-public class SynStream extends ControlFrame implements StreamFrame {
+public class SynStream extends ControlFrame implements HeaderStreamFrame {
 
     public static final int TYPE = 1;
 
@@ -36,30 +36,17 @@ public class SynStream extends ControlFrame implements StreamFrame {
         this.streamId = streamId;
     }
 
-    /**
-     * 返回当前所有headers
-     * 
-     * @return 有可能返回的是一个不可修改的Map
-     */
+    @Override
     public Map<String, String> getHeaders() {
         return headers;
     }
 
-    /**
-     * 设置该stream的headers
-     * 
-     * @param headers
-     */
+    @Override
     public void setHeaders(Map<String, String> headers) {
         this.headers = headers;
     }
 
-    /**
-     * 返回某个头的值，如果没有则返回null
-     * 
-     * @param name
-     * @return
-     */
+    @Override
     public String getHeader(String name) {
         return headers.get(name);
     }
@@ -85,7 +72,7 @@ public class SynStream extends ControlFrame implements StreamFrame {
         this.streamId = Math.abs(buffer.readInt());
         this.associatedId = Math.abs(buffer.readInt());
         buffer.skipBytes(2); // skip Priority(2bits) & Unused(14bits) 
-        this.headers = Header.decode(buffer);
+        this.headers = HeaderUtil.decode(buffer);
     }
 
     @Override
@@ -93,7 +80,7 @@ public class SynStream extends ControlFrame implements StreamFrame {
         buffer.writeInt(streamId);
         buffer.writeInt(associatedId);
         buffer.writeShort(0);
-        Header.encode(headers, buffer);
+        HeaderUtil.encode(headers, buffer);
     }
 
     @Override

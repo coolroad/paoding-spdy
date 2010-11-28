@@ -1,7 +1,5 @@
 package net.paoding.spdy.common.frame;
 
-import java.util.concurrent.ExecutorService;
-
 import net.paoding.spdy.common.frame.frames.Ping;
 
 import org.apache.commons.logging.Log;
@@ -26,22 +24,15 @@ public class PingExecution extends SimpleChannelHandler {
 
     private PingListener pingListener;
 
-    private ExecutorService executor;
-
     public PingExecution() {
     }
 
-    public PingExecution(ExecutorService executor, PingListener pingListener) {
-        setExecutor(executor);
+    public PingExecution(PingListener pingListener) {
         setPingListener(pingListener);
     }
 
     public void setPingListener(PingListener pingListener) {
         this.pingListener = pingListener;
-    }
-
-    public void setExecutor(ExecutorService executor) {
-        this.executor = executor;
     }
 
     @Override
@@ -63,17 +54,7 @@ public class PingExecution extends SimpleChannelHandler {
                 }
             }
             if (pingListener != null) {
-                if (executor == null) {
-                    pingListener.pingArrived(ping);
-                } else {
-                    executor.execute(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            pingListener.pingArrived(ping);
-                        }
-                    });
-                }
+                pingListener.pingArrived(ping);
             } else {
                 if (logger.isDebugEnabled()) {
                     logger.debug("there's not pingListener for ping arriving:" + ping);

@@ -9,7 +9,7 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 
 public class SubscriptionImpl implements Subscription {
 
-    final SpdyConnector connector;
+    final NettyConnector connector;
 
     final int streamId;
 
@@ -17,7 +17,7 @@ public class SubscriptionImpl implements Subscription {
 
     final HttpFuture<HttpResponse> subscriptionFutrue;
 
-    public SubscriptionImpl(int streamId, SpdyConnector connector,
+    public SubscriptionImpl(int streamId, NettyConnector connector,
             HttpFuture<HttpResponse> subscriptionFutrue, final SubscriptionListener listener) {
         this.connector = connector;
         this.streamId = streamId;
@@ -31,6 +31,7 @@ public class SubscriptionImpl implements Subscription {
         };
     }
 
+    // TODO: 要不要return future?
     @Override
     public void close() {
         connector.desubscript(this);

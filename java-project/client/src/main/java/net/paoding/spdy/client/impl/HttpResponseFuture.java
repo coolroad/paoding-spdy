@@ -93,7 +93,7 @@ class HttpResponseFuture implements HttpFuture<HttpResponse> {
     private Connector connection;
 
     /**
-     * Creates a new instance.
+     * 创建一个请求的响应future
      * 
      */
     public HttpResponseFuture(Connector connection, SpdyRequest request, boolean cancellable) {
@@ -103,6 +103,13 @@ class HttpResponseFuture implements HttpFuture<HttpResponse> {
         this.subscription = null;
     }
 
+    /**
+     * 创建一个订阅的响应future
+     * 
+     * @param connection
+     * @param subscription
+     * @param cancellable
+     */
     public HttpResponseFuture(Connector connection, SubscriptionImpl subscription,
             boolean cancellable) {
         this.connection = connection;

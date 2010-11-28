@@ -12,7 +12,7 @@ import org.jboss.netty.buffer.ChannelBuffer;
  * @author qieqie.wang@gmail.com
  * 
  */
-public class RstStream extends ControlFrame implements StreamFrame {
+public class RstStream extends ControlFrame implements HeaderStreamFrame {
 
     public static final int TYPE = 3;
 
@@ -52,14 +52,17 @@ public class RstStream extends ControlFrame implements StreamFrame {
         this.streamId = streamId;
     }
 
+    @Override
     public Map<String, String> getHeaders() {
         return headers;
     }
 
+    @Override
     public void setHeaders(Map<String, String> headers) {
         this.headers = headers;
     }
 
+    @Override
     public String getHeader(String name) {
         return headers.get(name);
     }
