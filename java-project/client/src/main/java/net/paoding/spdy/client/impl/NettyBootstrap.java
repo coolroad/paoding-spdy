@@ -1,11 +1,13 @@
 package net.paoding.spdy.client.impl;
 
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import net.paoding.spdy.client.Bootstrap;
 import net.paoding.spdy.client.Connector;
-import net.paoding.spdy.client.ConnectorFactory;
+import net.paoding.spdy.client.HttpFuture;
 import net.paoding.spdy.common.frame.FrameDecoder3;
 import net.paoding.spdy.common.frame.FrameEncoder;
 import net.paoding.spdy.common.frame.PingExecution;
@@ -23,7 +25,7 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
  * @author qieqie.wang@gmail.com
  * 
  */
-public class NettyConnectorFactory implements ConnectorFactory {
+public class NettyBootstrap implements Bootstrap {
 
     private ClientSocketChannelFactory channelFactory;
 
@@ -31,16 +33,16 @@ public class NettyConnectorFactory implements ConnectorFactory {
 
     private ThreadLocal<NettyConnector> connectings = new ThreadLocal<NettyConnector>();
 
-    public NettyConnectorFactory() {
+    public NettyBootstrap() {
         this(new NioClientSocketChannelFactory(Executors.newCachedThreadPool(),
                 Executors.newCachedThreadPool()));
     }
 
-    public NettyConnectorFactory(Executor bossExecutor, Executor workerExecutor, int workerCount) {
+    public NettyBootstrap(Executor bossExecutor, Executor workerExecutor, int workerCount) {
         this(new NioClientSocketChannelFactory(bossExecutor, workerExecutor, workerCount));
     }
 
-    public NettyConnectorFactory(ClientSocketChannelFactory channelFactory) {
+    public NettyBootstrap(ClientSocketChannelFactory channelFactory) {
         this.channelFactory = channelFactory;
     }
 
@@ -49,17 +51,18 @@ public class NettyConnectorFactory implements ConnectorFactory {
     }
 
     @Override
-    public Connector get(String host, int port) {
-        return new NettyConnector(this, host, port);
-    }
-
-    ChannelFuture connect(NettyConnector connector, SocketAddress remoteAddress) {
+    public HttpFuture<Connector> connect(String host, int port) {
         try {
-            if (connector.factory != this) {
-                throw new IllegalArgumentException();
-            }
+            SocketAddress remoteAddress = new InetSocketAddress(host, port);
+            NettyConnector connector = new NettyConnector(this, host, port);
             connectings.set(connector);
-            return getBootstrap().connect(remoteAddress);
+
+            ChannelFuture future = getBootstrap().connect(remoteAddress);
+            connector.setChannelFuture(future);
+            HttpFutureImpl<Connector> connectFuture = new HttpFutureImpl<Connector>(connector,
+                    future);
+            connectFuture.setTarget(connector);
+            return connectFuture;
         } finally {
             connectings.remove();
         }

@@ -5,7 +5,7 @@ package net.paoding.spdy.client;
  * @author qieqie.wang@gmail.com
  * 
  */
-public interface ConnectorFactory {
+public interface Bootstrap {
 
     /**
      * 
@@ -13,5 +13,5 @@ public interface ConnectorFactory {
      * @param port
      * @return
      */
-    public Connector get(String host, int port);
+    public HttpFuture<Connector> connect(String host, int port);
 }

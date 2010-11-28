@@ -2,7 +2,7 @@ package net.paoding.spdy.client;
 
 import java.io.IOException;
 
-import net.paoding.spdy.client.impl.NettyConnectorFactory;
+import net.paoding.spdy.client.impl.NettyBootstrap;
 
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -10,8 +10,8 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 public class Main {
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        NettyConnectorFactory factory = new NettyConnectorFactory();
-        HttpFuture<Connector> connecting = factory.get("localhost", 8081).connect();
+        Bootstrap bootstrap = new NettyBootstrap();
+        HttpFuture<Connector> connecting = bootstrap.connect("localhost", 8081);
         Connector connector = connecting.awaitUninterruptibly().getConnector();
         //        //
         HttpRequest request = new DefaultHttpRequest("post", "/the8/test");
@@ -60,8 +60,8 @@ public class Main {
     }
 
     public static void main1(String[] args) throws IOException {
-        ConnectorFactory factory = new NettyConnectorFactory();
-        HttpFuture<Connector> connecting = factory.get("localhost", 8081).connect();
+        Bootstrap bootstrap = new NettyBootstrap();
+        HttpFuture<Connector> connecting = bootstrap.connect("localhost", 8081);
         Connector connector = connecting.awaitUninterruptibly().getConnector();
         //
         HttpRequest request = new DefaultHttpRequest("get", "/the8/test");
@@ -91,8 +91,8 @@ public class Main {
     }
 
     public static void main0(String[] args) throws IOException {
-        ConnectorFactory factory = new NettyConnectorFactory();
-        HttpFuture<Connector> connecting = factory.get("localhost", 8081).connect();
+        Bootstrap factory = new NettyBootstrap();
+        HttpFuture<Connector> connecting = factory.connect("localhost", 8081);
         Connector connection = connecting.awaitUninterruptibly().getTarget();
         //
         HttpRequest request = new DefaultHttpRequest("GET", "/blog/123456");
