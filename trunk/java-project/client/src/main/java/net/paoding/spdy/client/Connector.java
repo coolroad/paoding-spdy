@@ -32,12 +32,12 @@ public interface Connector {
     /**
      * 向远程服务发送一个ping
      */
-    HttpFuture<Ping> ping();
+    Future<Ping> ping();
 
     /**
      * 向服务器发送情求
      */
-    HttpFuture<HttpResponse> doRequest(HttpRequest request);
+    Future<HttpResponse> doRequest(HttpRequest request);
 
     /**
      * 
@@ -50,12 +50,12 @@ public interface Connector {
     /**
      * 关闭connector，使不能再发送请求
      */
-    HttpFuture<Connector> close();
+    Future<Connector> close();
 
     /**
      * @throws IllegalStateException 如果还未连接
      * @see #close()
      */
-    HttpFuture<Connector> getCloseFuture();
+    Future<Connector> getCloseFuture();
 
 }
