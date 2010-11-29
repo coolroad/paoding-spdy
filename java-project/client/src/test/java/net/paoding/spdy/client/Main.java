@@ -2,7 +2,7 @@ package net.paoding.spdy.client;
 
 import java.io.IOException;
 
-import net.paoding.spdy.client.impl.NettyBootstrap;
+import net.paoding.spdy.client.netty.NettyBootstrap;
 
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -11,7 +11,7 @@ public class Main {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         Bootstrap bootstrap = new NettyBootstrap();
-        HttpFuture<Connector> connecting = bootstrap.connect("localhost", 8081);
+        Future<Connector> connecting = bootstrap.connect("localhost", 8081);
         Connector connector = connecting.awaitUninterruptibly().getConnector();
         //        //
         HttpRequest request = new DefaultHttpRequest("post", "/the8/test");
@@ -19,7 +19,7 @@ public class Main {
         setParameters(args, parameters).copyTo(request);
 
         //
-        HttpFuture<HttpResponse> responseFuture = connector.doRequest(request);
+        Future<HttpResponse> responseFuture = connector.doRequest(request);
         responseFuture.awaitUninterruptibly();
         HttpResponse response = responseFuture.getTarget();
 
@@ -47,7 +47,7 @@ public class Main {
                 System.out.println("subscription.content=" + getContentAsString(response));
             }
         });
-        HttpResponse response2 = sub.getSubscriptionFutrue().awaitUninterruptibly().getTarget();
+        HttpResponse response2 = sub.getFuture().awaitUninterruptibly().getTarget();
 
         System.out.println(getContentAsString(response2));
 
@@ -61,14 +61,14 @@ public class Main {
 
     public static void main1(String[] args) throws IOException {
         Bootstrap bootstrap = new NettyBootstrap();
-        HttpFuture<Connector> connecting = bootstrap.connect("localhost", 8081);
+        Future<Connector> connecting = bootstrap.connect("localhost", 8081);
         Connector connector = connecting.awaitUninterruptibly().getConnector();
         //
         HttpRequest request = new DefaultHttpRequest("get", "/the8/test");
         HttpParameters parameters = new HttpParameters();
         setParameters(args, parameters).copyTo(request);
         //
-        HttpFuture<HttpResponse> responseFuture = connector.doRequest(request);
+        Future<HttpResponse> responseFuture = connector.doRequest(request);
         responseFuture.awaitUninterruptibly();
         HttpResponse response = responseFuture.getTarget();
         //
@@ -92,14 +92,14 @@ public class Main {
 
     public static void main0(String[] args) throws IOException {
         Bootstrap factory = new NettyBootstrap();
-        HttpFuture<Connector> connecting = factory.connect("localhost", 8081);
+        Future<Connector> connecting = factory.connect("localhost", 8081);
         Connector connection = connecting.awaitUninterruptibly().getTarget();
         //
         HttpRequest request = new DefaultHttpRequest("GET", "/blog/123456");
         HttpParameters parameters = new HttpParameters();
         parameters.setParameter("view", "preview");
         parameters.copyTo(request);
-        HttpFuture<HttpResponse> responseFuture = connection.doRequest(request);
+        Future<HttpResponse> responseFuture = connection.doRequest(request);
         HttpResponse response = responseFuture.awaitUninterruptibly().getTarget();
         System.out.println(response.getStatus());
     }

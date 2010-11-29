@@ -1,6 +1,6 @@
 package net.paoding.spdy.client;
 
 
-public interface ConnectorFuture extends HttpFuture<Connector> {
+public interface ConnectorFuture extends Future<Connector> {
 
 }
