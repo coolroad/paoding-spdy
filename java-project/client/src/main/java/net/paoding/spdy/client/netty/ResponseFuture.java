@@ -25,10 +25,8 @@ import net.paoding.spdy.client.Connector;
 import net.paoding.spdy.client.Future;
 import net.paoding.spdy.client.FutureListener;
 
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.jboss.netty.logging.InternalLogger;
-import org.jboss.netty.logging.InternalLoggerFactory;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.util.internal.IoWorkerRunnable;
 
 /**
@@ -40,10 +38,9 @@ import org.jboss.netty.util.internal.IoWorkerRunnable;
  * @version $Rev: 2201 $, $Date: 2010-02-23 14:45:53 +0900 (Tue, 23 Feb
  *          2010) $
  */
-class ResponseFuture implements Future<HttpResponse> {
+class ResponseFuture<Request, Response> implements Future<Response> {
 
-    private static final InternalLogger logger = InternalLoggerFactory
-            .getInstance(ResponseFuture.class);
+    private static final Log logger = LogFactory.getLog(ResponseFuture.class);
 
     private static final Throwable CANCELLED = new Throwable();
 
@@ -72,17 +69,15 @@ class ResponseFuture implements Future<HttpResponse> {
         ResponseFuture.useDeadLockChecker = useDeadLockChecker;
     }
 
-    private final SpdyRequest request;
+    private Request request;
 
-    private final SubscriptionImpl subscription;
-
-    private HttpResponse response;
+    private Response response;
 
     private final boolean cancellable;
 
-    private FutureListener<HttpResponse> firstListener;
+    private FutureListener<Response> firstListener;
 
-    private List<FutureListener<HttpResponse>> otherListeners;
+    private List<FutureListener<Response>> otherListeners;
 
     private boolean done;
 
@@ -90,61 +85,33 @@ class ResponseFuture implements Future<HttpResponse> {
 
     private int waiters;
 
-    private Connector connection;
+    private Connector connector;
 
     /**
-     * 创建一个请求的响应future
+     * 创建一个请求或订阅的响应future
      * 
      */
-    public ResponseFuture(Connector connection, SpdyRequest request, boolean cancellable) {
-        this.connection = connection;
+    public ResponseFuture(Connector connection, Request request) {
+        this.connector = connection;
         this.request = request;
-        this.cancellable = cancellable;
-        this.subscription = null;
+        this.cancellable = false;
     }
 
-    /**
-     * 创建一个订阅的响应future
-     * 
-     * @param connection
-     * @param subscription
-     * @param cancellable
-     */
-    public ResponseFuture(Connector connection, SubscriptionImpl subscription,
-            boolean cancellable) {
-        this.connection = connection;
-        this.request = null;
-        this.cancellable = cancellable;
-        this.subscription = subscription;
-    }
-
-    public HttpRequest getRequest() {
-        return request.httpRequest;
-    }
-
-    public SubscriptionImpl getSubscription() {
-        return subscription;
+    public Request getRequest() {
+        return request;
     }
 
     @Override
     public Connector getConnector() {
-        return connection;
-    }
-
-    public int getStreamId() {
-        return subscription != null ? subscription.streamId : request.streamId;
-    }
-
-    public void setResponse(HttpResponse response) {
-        this.response = response;
+        return connector;
     }
 
     @Override
-    public HttpResponse getTarget() {
+    public Response getResponse() {
         return response;
     }
 
-    public void setTarget(HttpResponse response) {
+    public void setResponse(Response response) {
         this.response = response;
     }
 
@@ -168,7 +135,7 @@ class ResponseFuture implements Future<HttpResponse> {
         return cause == CANCELLED;
     }
 
-    public void addListener(FutureListener<HttpResponse> listener) {
+    public void addListener(FutureListener<Response> listener) {
         if (listener == null) {
             throw new NullPointerException("listener");
         }
@@ -182,7 +149,7 @@ class ResponseFuture implements Future<HttpResponse> {
                     firstListener = listener;
                 } else {
                     if (otherListeners == null) {
-                        otherListeners = new ArrayList<FutureListener<HttpResponse>>(1);
+                        otherListeners = new ArrayList<FutureListener<Response>>(1);
                     }
                     otherListeners.add(listener);
                 }
@@ -194,7 +161,7 @@ class ResponseFuture implements Future<HttpResponse> {
         }
     }
 
-    public void removeListener(FutureListener<HttpResponse> listener) {
+    public void removeListener(FutureListener<Response> listener) {
         if (listener == null) {
             throw new NullPointerException("listener");
         }
@@ -214,7 +181,7 @@ class ResponseFuture implements Future<HttpResponse> {
         }
     }
 
-    public ResponseFuture await() throws InterruptedException {
+    public ResponseFuture<Request, Response> await() throws InterruptedException {
         if (Thread.interrupted()) {
             throw new InterruptedException();
         }
@@ -241,7 +208,7 @@ class ResponseFuture implements Future<HttpResponse> {
         return await0(MILLISECONDS.toNanos(timeoutMillis), true);
     }
 
-    public ResponseFuture awaitUninterruptibly() {
+    public ResponseFuture<Request, Response> awaitUninterruptibly() {
         boolean interrupted = false;
         synchronized (this) {
             while (!done) {
@@ -407,7 +374,7 @@ class ResponseFuture implements Future<HttpResponse> {
             firstListener = null;
 
             if (otherListeners != null) {
-                for (FutureListener<HttpResponse> l : otherListeners) {
+                for (FutureListener<Response> l : otherListeners) {
                     notifyListener(l);
                 }
                 otherListeners = null;
@@ -415,12 +382,12 @@ class ResponseFuture implements Future<HttpResponse> {
         }
     }
 
-    private void notifyListener(FutureListener<HttpResponse> l) {
+    private void notifyListener(FutureListener<Response> l) {
         try {
             l.operationComplete(this);
         } catch (Throwable t) {
-            logger.warn("An exception was thrown by " + ResponseFuture.class.getSimpleName()
-                    + ".", t);
+            logger.warn("An exception was thrown by " + ResponseFuture.class.getSimpleName() + ".",
+                    t);
         }
     }
 

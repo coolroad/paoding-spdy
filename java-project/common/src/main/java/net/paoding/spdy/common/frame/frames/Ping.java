@@ -22,7 +22,7 @@ public class Ping extends ControlFrame {
      * 
      * @return
      */
-    public synchronized static Ping toServer() {
+    public synchronized static Ping getPingToServer() {
         nextId += 2;
         if (nextId < 0) {
             nextId = 0;
@@ -35,7 +35,7 @@ public class Ping extends ControlFrame {
      * 
      * @return
      */
-    public synchronized static Ping toClient() {
+    public synchronized static Ping getPingToClient() {
         nextId += 2;
         if (nextId < 0) {
             nextId = 0;

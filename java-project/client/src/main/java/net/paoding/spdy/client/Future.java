@@ -38,7 +38,7 @@ public interface Future<T> {
      * 
      * @return
      */
-    public T getTarget();
+    public T getResponse();
 
     /**
      * Returns {@code true} if and only if this future is complete,

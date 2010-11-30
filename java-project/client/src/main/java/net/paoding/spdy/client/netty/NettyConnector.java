@@ -31,7 +31,6 @@ import net.paoding.spdy.common.supports.ExpireWheel;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -41,8 +40,6 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  * @author qieqie.wang@gmail.com
  * 
  */
-// TODO: 如何保证所有的frame都发送到server后才close?
-// TODO: 在close之前要先取消订阅？
 public class NettyConnector implements Connector, PingListener {
 
     // 配置信息
@@ -74,10 +71,12 @@ public class NettyConnector implements Connector, PingListener {
     // 其它
 
     /** 当前发出、但还未接收到响应的ping */
-    ExpireWheel<FutureImpl<Ping>> pings = new ExpireWheel<FutureImpl<Ping>>(256, 1);
+    ExpireWheel<ResponseFuture<Ping, Ping>> pings = new ExpireWheel<ResponseFuture<Ping, Ping>>(
+            256, 1);
 
     //TODO: ExpireWheel的使用方式要Review
-    ExpireWheel<ResponseFuture> requests = new ExpireWheel<ResponseFuture>(1024 * 16, 1); // step is 1 not 2
+    ExpireWheel<ResponseFuture<?, HttpResponse>> requests = new ExpireWheel<ResponseFuture<?, HttpResponse>>(
+            1024 * 16, 1); // step is 1 not 2
 
     /** 当前的server-push订阅 */
     Map<Integer, SubscriptionImpl> subscriptions = new HashMap<Integer, SubscriptionImpl>();
@@ -171,15 +170,66 @@ public class NettyConnector implements Connector, PingListener {
             throw new IllegalStateException();
         }
         channel = future.getChannel();
-        closeFuture = new CloseFuture(this, future);
-        closeFuture.setTarget(this);
-        channel.getCloseFuture().addListener(new ChannelFutureListener() {
+        closeFuture = new CloseFuture(this, channel.getCloseFuture());
+    }
 
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                closeFuture.setClosed();
-            }
-        });
+    @Override
+    public boolean isConnected() {
+        return channel != null && channel.isConnected();
+    }
+
+    @Override
+    public Future<HttpResponse> doRequest(HttpRequest request) {
+        if (!isConnected()) {
+            throw new IllegalStateException("not connected");
+        }
+        SpdyRequest spdyRequest = new SpdyRequest(getNextStreamId(), request, 0);
+        ResponseFuture<SpdyRequest, HttpResponse> responseFuture = new ResponseFuture<SpdyRequest, HttpResponse>(
+                this, spdyRequest);
+        requests.put(spdyRequest.streamId, responseFuture);
+        //
+        Channels.write(channel, spdyRequest);
+        return responseFuture;
+    }
+
+    @Override
+    public Subscription subscribe(HttpRequest request, SubscriptionListener listener) {
+        if (!isConnected()) {
+            throw new IllegalStateException("not connected");
+        }
+        SpdyRequest spdyRequest = new SpdyRequest(getNextStreamId(), request, 1);
+        SubscriptionImpl subscription = new SubscriptionImpl(this, spdyRequest, listener);
+        ResponseFuture<Subscription, HttpResponse> responseFuture = new ResponseFuture<Subscription, HttpResponse>(
+                this, subscription);
+        subscription.setResponseFuture(responseFuture);
+        requests.put(spdyRequest.streamId, responseFuture);
+        subscriptions.put(spdyRequest.streamId, subscription);
+        Channels.write(channel, spdyRequest);
+        return subscription;
+    }
+
+    @Override
+    public Future<Ping> ping() {
+        if (!isConnected()) {
+            throw new IllegalStateException("not connected");
+        }
+        Ping ping = Ping.getPingToServer();
+        ResponseFuture<Ping, Ping> pingFuture = new ResponseFuture<Ping, Ping>(this, ping);
+        pings.put(ping.getId(), pingFuture);
+        Channels.write(channel, ping);
+        return pingFuture;
+    }
+
+    /**
+     * {@link PingListener}的实现，当接收到服务端的ping响应时，会把该ping通知给future
+     */
+    @Override
+    public void pingArrived(Ping ping) {
+        ResponseFuture<Ping, Ping> pingFuture = pings.remove(ping.getId());
+        if (pingFuture != null) {
+            pingFuture.setResponse(ping);
+            pingFuture.setSuccess();
+        }
     }
 
     @Override
@@ -196,62 +246,6 @@ public class NettyConnector implements Connector, PingListener {
         return closeFuture;
     }
 
-    @Override
-    public boolean isConnected() {
-        return channel != null && channel.isConnected();
-    }
-
-    @Override
-    public Future<HttpResponse> doRequest(HttpRequest request) {
-        if (!isConnected()) {
-            throw new IllegalStateException("not connected");
-        }
-        SpdyRequest spdyRequest = new SpdyRequest(getNextStreamId(), request, 0);
-        ResponseFuture responseFuture = new ResponseFuture(this, spdyRequest, false);
-        requests.put(responseFuture.getStreamId(), responseFuture);
-        //
-        Channels.write(channel, spdyRequest);
-        return responseFuture;
-    }
-
-    @Override
-    public Subscription subscribe(HttpRequest request, SubscriptionListener listener) {
-        if (!isConnected()) {
-            throw new IllegalStateException("not connected");
-        }
-        SpdyRequest spdyRequest = new SpdyRequest(getNextStreamId(), request, 1);
-        ResponseFuture responseFuture = new ResponseFuture(this, spdyRequest, false);
-        SubscriptionImpl subscription = new SubscriptionImpl(spdyRequest.streamId, this,
-                responseFuture, listener);
-        subscriptions.put(spdyRequest.streamId, subscription);
-        // TODO: 为何要put到futures?
-        requests.put(spdyRequest.streamId, responseFuture);
-        Channels.write(channel, spdyRequest);
-        return subscription;
-    }
-
-    @Override
-    public Future<Ping> ping() {
-        // TODO: write如果太快，会导致pingArrived方法找不到pingFuture
-        Ping ping = Ping.toServer();
-        ChannelFuture future = Channels.write(channel, ping);
-        FutureImpl<Ping> pingFuture = new FutureImpl<Ping>(this, future);
-        pings.put(ping.getId(), pingFuture);
-        return pingFuture;
-    }
-
-    /**
-     * {@link PingListener}的实现，当接收到服务端的ping响应时，会把该ping通知给future
-     */
-    @Override
-    public void pingArrived(Ping ping) {
-        FutureImpl<Ping> pingFuture = pings.remove(ping.getId());
-        if (pingFuture != null) {
-            pingFuture.setTarget(ping);
-            pingFuture.setSuccess();
-        }
-    }
-
     /**
      * called by SubscriptionImpl#close()
      * 
@@ -261,13 +255,16 @@ public class NettyConnector implements Connector, PingListener {
      */
     ChannelFuture desubscript(SubscriptionImpl pushingImpl) {
         subscriptions.remove(pushingImpl.streamId);
-        // 向服务器发送一个取消订阅的SynStream
-        SynStream syn = new SynStream();
-        syn.setChannel(this.channel);
-        syn.setStreamId(getNextStreamId());
-        syn.setAssociatedId(pushingImpl.streamId);
-        syn.setFlags(SpdyFrame.FLAG_FIN);
-        return Channels.write(channel, syn);
+        if (isConnected()) {
+            // 向服务器发送一个取消订阅的SynStream
+            SynStream syn = new SynStream();
+            syn.setChannel(this.channel);
+            syn.setStreamId(getNextStreamId());
+            syn.setAssociatedId(pushingImpl.streamId);
+            syn.setFlags(SpdyFrame.FLAG_FIN);
+            return Channels.write(channel, syn);
+        }
+        return Channels.succeededFuture(channel);
     }
 
     //----------------------------------------------
@@ -282,7 +279,7 @@ public class NettyConnector implements Connector, PingListener {
         return nextStreamId;
     }
 
-    private final class CloseFuture extends FutureImpl<Connector> {
+    private static final class CloseFuture extends ChannelFutureAdapter<Connector> {
 
         CloseFuture(Connector connection, ChannelFuture channelFuture) {
             super(connection, channelFuture);
@@ -298,10 +295,6 @@ public class NettyConnector implements Connector, PingListener {
         public boolean setFailure(Throwable cause) {
             // User is not supposed to call this method - ignore silently.
             return false;
-        }
-
-        boolean setClosed() {
-            return super.setSuccess();
         }
     }
 
