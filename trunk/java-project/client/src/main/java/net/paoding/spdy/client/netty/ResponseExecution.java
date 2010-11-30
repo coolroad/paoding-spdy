@@ -2,6 +2,7 @@ package net.paoding.spdy.client.netty;
 
 import java.util.Map;
 
+import net.paoding.spdy.client.Subscription;
 import net.paoding.spdy.common.frame.frames.DataFrame;
 import net.paoding.spdy.common.frame.frames.SpdyFrame;
 import net.paoding.spdy.common.frame.frames.StreamFrame;
@@ -54,40 +55,42 @@ public class ResponseExecution implements ChannelUpstreamHandler {
         }
         final StreamFrame frame = (StreamFrame) msg;
         final int streamId = frame.getStreamId();
-        final ResponseFuture future;
+        final ResponseFuture<?, HttpResponse> responseFuture;
+
         // (客户端)接收到单向的synStream代表有一个server push过来了！
         if (msg instanceof SynStream) {
-            future = doWithSynFrame(streamId, (SynStream) msg);
-            if (future != null) {
+            responseFuture = doWithSynFrame(streamId, (SynStream) msg);
+            if (responseFuture != null) {
                 // serverpush时要把future注册到requests中，使得后续的dataframe能够正确塞出来
-                // XXX:放进来到futures的这个future会不会和客户端的future frameId相同，从而互相覆盖而郁闷？
+                // !!放进来到futures的这个future会不会和客户端的future frameId相同，从而互相覆盖而郁闷？
                 // 不会!因为服务器端来的streamId和客户端发送的frameId奇偶性质不一样，不会互相覆盖
-                connector.requests.put(streamId, future);
+                connector.requests.put(streamId, responseFuture);
             }
         } else {
             // 
-            future = connector.requests.get(streamId);
-            if (future == null) {
+            responseFuture = connector.requests.get(streamId);
+            if (responseFuture == null) {
                 logger.warn("not found future for " + msg);
             } else {
                 if (msg instanceof SynReply) {
-                    doWithSynReply(future, (SynReply) msg);
+                    doWithSynReply(responseFuture, (SynReply) msg);
                 } else if (msg instanceof DataFrame) {
-                    doWithDataFrame(future, (DataFrame) msg);
+                    doWithDataFrame(responseFuture, (DataFrame) msg);
                 }
             }
         }
-        if (future != null && frame.getFlags() == SpdyFrame.FLAG_FIN) {
+        if (responseFuture != null && frame.getFlags() == SpdyFrame.FLAG_FIN) {
             connector.requests.remove(streamId);
-            future.setSuccess();
+            responseFuture.setSuccess();
         }
     }
 
-    private ResponseFuture doWithSynFrame(int streamId, SynStream syn) {
+    private ResponseFuture<Subscription, HttpResponse> doWithSynFrame(int streamId, SynStream syn) {
         if (syn.getFlags() == SpdyFrame.FLAG_UNIDIRECTIONAL) {
             SubscriptionImpl subscription = connector.subscriptions.get(syn.getAssociatedId());
             if (subscription != null) {
-                final ResponseFuture f = new ResponseFuture(connector, subscription, false);
+                final ResponseFuture<Subscription, HttpResponse> f = new ResponseFuture<Subscription, HttpResponse>(
+                        connector, subscription);
                 f.addListener(subscription.listener);
                 HttpResponseStatus status = new HttpResponseStatus(200, "OK");
                 HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
@@ -98,7 +101,7 @@ public class ResponseExecution implements ChannelUpstreamHandler {
                     }
                     response.setHeader(name, header.getValue());
                 }
-                f.setTarget(response);
+                f.setResponse(response);
                 return f;
             } else {
                 logger.warn("not found subscription for SynFrame:" + syn + "  url="
@@ -117,7 +120,7 @@ public class ResponseExecution implements ChannelUpstreamHandler {
      * @param f
      * @param reply
      */
-    private void doWithSynReply(final ResponseFuture f, SynReply reply) {
+    private void doWithSynReply(final ResponseFuture<?, HttpResponse> f, SynReply reply) {
         HttpVersion version = HttpVersion.valueOf(reply.getHeader("version"));
         String statusline = reply.getHeader("status");
         int statusCode;
@@ -139,7 +142,7 @@ public class ResponseExecution implements ChannelUpstreamHandler {
             response.setHeader(name, header.getValue());
         }
         // 将repsonse设置为future的target
-        f.setTarget(response);
+        f.setResponse(response);
     }
 
     /**
@@ -148,8 +151,8 @@ public class ResponseExecution implements ChannelUpstreamHandler {
      * @param f
      * @param frame
      */
-    private void doWithDataFrame(final ResponseFuture f, DataFrame frame) {
-        HttpResponse response = f.getTarget();
+    private void doWithDataFrame(final ResponseFuture<?, HttpResponse> f, DataFrame frame) {
+        HttpResponse response = f.getResponse();
         ChannelBuffer content = response.getContent();
         if (frame.getData().readable()) {
             if (content.array().length == 0) {

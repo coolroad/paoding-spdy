@@ -24,13 +24,13 @@ import net.paoding.spdy.client.FutureListener;
 import org.jboss.netty.channel.ChannelFuture;
 
 /**
- * {@link Future}的实现
+ * {@link Future}的实现: 只关心本端的操作是否成功发送，不关心远程对等方的回应
  * 
  * @author qieqie.wang@gmail.com
  * 
  * @param <T>
  */
-class FutureImpl<T> implements Future<T> {
+class ChannelFutureAdapter<T> implements Future<T> {
 
     /** 所属的连接 */
     private final Connector connector;
@@ -38,15 +38,12 @@ class FutureImpl<T> implements Future<T> {
     /** 所属的channelFuture，所有对本future的操作都将通过channelFuture来实现 */
     private final ChannelFuture channelFuture;
 
-    /** 该future的结果 */
-    private T target;
-
     /**
      * 
      * @param connector
      * @param channelFuture
      */
-    FutureImpl(Connector connector, ChannelFuture channelFuture) {
+    ChannelFutureAdapter(Connector connector, ChannelFuture channelFuture) {
         this.connector = connector;
         this.channelFuture = channelFuture;
     }
@@ -57,17 +54,9 @@ class FutureImpl<T> implements Future<T> {
     }
 
     @Override
-    public T getTarget() {
-        return target;
-    }
-
-    /**
-     * 设置操作结果，当本future有结果的时候，必须通过此方法设置操作结果
-     * 
-     * @param target
-     */
-    public void setTarget(T target) {
-        this.target = target;
+    public T getResponse() {
+        // don't call this method
+        throw new UnsupportedOperationException();
     }
 
     @Override

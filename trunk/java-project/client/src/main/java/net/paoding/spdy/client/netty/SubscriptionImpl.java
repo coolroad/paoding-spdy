@@ -23,6 +23,7 @@ import net.paoding.spdy.client.SubscriptionListener;
 
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
+import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
 /**
@@ -35,25 +36,32 @@ public class SubscriptionImpl implements Subscription {
     /** 所属的连接 */
     final NettyConnector connector;
 
+    final SpdyRequest request;
+
     /** 订阅请求的streamId */
     final int streamId;
 
     /** 订阅请求的响应 */
-    final Future<HttpResponse> subscriptionFuture;
+    Future<HttpResponse> responseFuture;
 
     /** 订阅服务器端推送侦听器 */
     final FutureListener<HttpResponse> listener;
 
-    public SubscriptionImpl(int streamId, NettyConnector connector,
-            Future<HttpResponse> subscriptionFutrue, final SubscriptionListener listener) {
+    private final CloseFuture closeFuture;
+
+    private boolean closed;
+
+    public SubscriptionImpl(NettyConnector connector, SpdyRequest request,
+            final SubscriptionListener listener) {
         this.connector = connector;
-        this.streamId = streamId;
-        this.subscriptionFuture = subscriptionFutrue;
+        this.request = request;
+        this.streamId = request.streamId;
+        this.closeFuture = new CloseFuture(this);
         this.listener = new FutureListener<HttpResponse>() {
 
             @Override
             public void operationComplete(Future<HttpResponse> httpFuture) throws Exception {
-                listener.responseReceived(SubscriptionImpl.this, httpFuture.getTarget());
+                listener.responseReceived(SubscriptionImpl.this, httpFuture.getResponse());
             }
         };
     }
@@ -64,26 +72,62 @@ public class SubscriptionImpl implements Subscription {
     }
 
     @Override
-    public Future<HttpResponse> getFuture() {
-        return subscriptionFuture;
+    public HttpRequest getRequest() {
+        return request.httpRequest;
     }
 
     @Override
-    public Future<Subscription> close() {
-        ChannelFuture channelFuture = connector.desubscript(this);
-        final FutureImpl<Subscription> future = new FutureImpl<Subscription>(connector,
-                channelFuture);
-        channelFuture.addListener(new ChannelFutureListener() {
+    public Future<HttpResponse> getResponseFuture() {
+        return responseFuture;
+    }
 
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                if (future.isSuccess()) {
-                    future.setSuccess();
-                } else {
-                    future.setFailure(future.getCause());
+    public void setResponseFuture(Future<HttpResponse> responseFuture) {
+        this.responseFuture = responseFuture;
+    }
+
+    @Override
+    public Future<Subscription> getCloseFuture() {
+        return closeFuture;
+    }
+
+    @Override
+    public synchronized Future<Subscription> close() {
+        if (!closed) {
+            ChannelFuture channelFuture = connector.desubscript(this);
+            channelFuture.addListener(new ChannelFutureListener() {
+
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    if (future.isSuccess()) {
+                        closeFuture.setClosed();
+                    }
                 }
-            }
-        });
-        return future;
+            });
+            closed = true;
+        }
+        return closeFuture;
+    }
+
+    private static final class CloseFuture extends ResponseFuture<Subscription, Subscription> {
+
+        CloseFuture(Subscription subscription) {
+            super(subscription.getConnector(), subscription);
+        }
+
+        @Override
+        public boolean setSuccess() {
+            // User is not supposed to call this method - ignore silently.
+            return false;
+        }
+
+        @Override
+        public boolean setFailure(Throwable cause) {
+            // User is not supposed to call this method - ignore silently.
+            return false;
+        }
+
+        boolean setClosed() {
+            return super.setSuccess();
+        }
     }
 }

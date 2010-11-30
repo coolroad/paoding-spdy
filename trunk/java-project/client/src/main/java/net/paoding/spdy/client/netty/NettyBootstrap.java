@@ -89,9 +89,7 @@ public class NettyBootstrap implements Bootstrap {
         NettyConnector connector = new NettyConnector(this, host, port);
         ChannelFuture future = getBootstrap(connector).connect(remoteAddress);
         connector.setChannelFuture(future);
-        FutureImpl<Connector> connectFuture = new FutureImpl<Connector>(connector, future);
-        connectFuture.setTarget(connector);
-        return connectFuture;
+        return new ChannelFutureAdapter<Connector>(connector, future);
     }
 
     /**

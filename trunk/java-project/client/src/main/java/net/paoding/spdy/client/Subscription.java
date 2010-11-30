@@ -15,6 +15,7 @@
  */
 package net.paoding.spdy.client;
 
+import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
 /**
@@ -33,11 +34,18 @@ public interface Subscription {
     Connector getConnector();
 
     /**
+     * 发送该订阅的请求对象
+     * 
+     * @return
+     */
+    HttpRequest getRequest();
+
+    /**
      * 订阅请求的响应，使用者必须通过该响应判断服务端是否接收了该订阅
      * 
      * @return
      */
-    Future<HttpResponse> getFuture();
+    Future<HttpResponse> getResponseFuture();
 
     /**
      * 取消并关闭本订阅
@@ -45,5 +53,12 @@ public interface Subscription {
      * @return
      */
     Future<Subscription> close();
+
+    /**
+     * 返回 {@link #close()} 的future对象
+     * 
+     * @return
+     */
+    Future<Subscription> getCloseFuture();
 
 }

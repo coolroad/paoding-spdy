@@ -21,7 +21,7 @@ public class Main {
         //
         Future<HttpResponse> responseFuture = connector.doRequest(request);
         responseFuture.awaitUninterruptibly();
-        HttpResponse response = responseFuture.getTarget();
+        HttpResponse response = responseFuture.getResponse();
 
         //
         System.out.println("status=" + response.getStatus());
@@ -47,7 +47,7 @@ public class Main {
                 System.out.println("subscription.content=" + getContentAsString(response));
             }
         });
-        HttpResponse response2 = sub.getFuture().awaitUninterruptibly().getTarget();
+        HttpResponse response2 = sub.getResponseFuture().awaitUninterruptibly().getResponse();
 
         System.out.println(getContentAsString(response2));
 
@@ -70,7 +70,7 @@ public class Main {
         //
         Future<HttpResponse> responseFuture = connector.doRequest(request);
         responseFuture.awaitUninterruptibly();
-        HttpResponse response = responseFuture.getTarget();
+        HttpResponse response = responseFuture.getResponse();
         //
         System.out.println("status=" + response.getStatus());
         System.out.println("content=" + getContentAsString(response));
@@ -93,14 +93,14 @@ public class Main {
     public static void main0(String[] args) throws IOException {
         Bootstrap factory = new NettyBootstrap();
         Future<Connector> connecting = factory.connect("localhost", 8081);
-        Connector connection = connecting.awaitUninterruptibly().getTarget();
+        Connector connection = connecting.awaitUninterruptibly().getResponse();
         //
         HttpRequest request = new DefaultHttpRequest("GET", "/blog/123456");
         HttpParameters parameters = new HttpParameters();
         parameters.setParameter("view", "preview");
         parameters.copyTo(request);
         Future<HttpResponse> responseFuture = connection.doRequest(request);
-        HttpResponse response = responseFuture.awaitUninterruptibly().getTarget();
+        HttpResponse response = responseFuture.awaitUninterruptibly().getResponse();
         System.out.println(response.getStatus());
     }
 }
