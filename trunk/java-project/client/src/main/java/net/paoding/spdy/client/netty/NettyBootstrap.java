@@ -34,6 +34,7 @@ import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
+import org.jboss.netty.util.internal.IoWorkerRunnable;
 
 /**
  * 使用Netty实现的Bootstrap
@@ -90,6 +91,14 @@ public class NettyBootstrap implements Bootstrap {
         ChannelFuture future = getBootstrap(connector).connect(remoteAddress);
         connector.setChannelFuture(future);
         return new ChannelFutureAdapter<Connector>(connector, future);
+    }
+
+    @Override
+    public void destroy() {
+        if (IoWorkerRunnable.IN_IO_THREAD.get()) {
+            throw new IllegalStateException("don't call destroy() in I/O thread.");
+        }
+        channelFactory.releaseExternalResources();
     }
 
     /**

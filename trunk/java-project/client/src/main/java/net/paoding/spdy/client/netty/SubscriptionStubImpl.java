@@ -18,7 +18,7 @@ package net.paoding.spdy.client.netty;
 import net.paoding.spdy.client.Connector;
 import net.paoding.spdy.client.Future;
 import net.paoding.spdy.client.FutureListener;
-import net.paoding.spdy.client.Subscription;
+import net.paoding.spdy.client.SubscriptionStub;
 import net.paoding.spdy.client.SubscriptionListener;
 
 import org.jboss.netty.channel.ChannelFuture;
@@ -31,7 +31,7 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  * @author qieqie.wang@gmail.com
  * 
  */
-public class SubscriptionImpl implements Subscription {
+public class SubscriptionStubImpl implements SubscriptionStub {
 
     /** 所属的连接 */
     final NettyConnector connector;
@@ -51,7 +51,7 @@ public class SubscriptionImpl implements Subscription {
 
     private boolean closed;
 
-    public SubscriptionImpl(NettyConnector connector, SpdyRequest request,
+    public SubscriptionStubImpl(NettyConnector connector, SpdyRequest request,
             final SubscriptionListener listener) {
         this.connector = connector;
         this.request = request;
@@ -61,7 +61,7 @@ public class SubscriptionImpl implements Subscription {
 
             @Override
             public void operationComplete(Future<HttpResponse> httpFuture) throws Exception {
-                listener.responseReceived(SubscriptionImpl.this, httpFuture.getResponse());
+                listener.responseReceived(SubscriptionStubImpl.this, httpFuture.get());
             }
         };
     }
@@ -86,12 +86,12 @@ public class SubscriptionImpl implements Subscription {
     }
 
     @Override
-    public Future<Subscription> getCloseFuture() {
+    public Future<SubscriptionStub> getCloseFuture() {
         return closeFuture;
     }
 
     @Override
-    public synchronized Future<Subscription> close() {
+    public synchronized Future<SubscriptionStub> close() {
         if (!closed) {
             ChannelFuture channelFuture = connector.desubscript(this);
             channelFuture.addListener(new ChannelFutureListener() {
@@ -108,9 +108,9 @@ public class SubscriptionImpl implements Subscription {
         return closeFuture;
     }
 
-    private static final class CloseFuture extends ResponseFuture<Subscription, Subscription> {
+    private static final class CloseFuture extends ResponseFuture<SubscriptionStub, SubscriptionStub> {
 
-        CloseFuture(Subscription subscription) {
+        CloseFuture(SubscriptionStub subscription) {
             super(subscription.getConnector(), subscription);
         }
 

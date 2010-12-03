@@ -13,30 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.paoding.spdy.client;
+package net.paoding.spdy.common.http;
 
-import org.jboss.netty.handler.codec.http.HttpMethod;
-import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpVersion;
 
 /**
- * 更简便的 {@link HttpRequest}，默认使用http 1.1版本号
+ * 更简便的 {@link HttpResponse}，默认使用http 1.1版本号、200 OK 状态的
  * 
  * @author qieqie.wang@gmail.com
  * 
  */
-public class DefaultHttpRequest extends org.jboss.netty.handler.codec.http.DefaultHttpRequest {
+public class DefaultHttpResponse extends org.jboss.netty.handler.codec.http.DefaultHttpResponse {
 
-    public DefaultHttpRequest(String method, String uri) {
-        super(HttpVersion.HTTP_1_1, HttpMethod.valueOf(method), uri);
+    public static HttpResponseStatus STATUS_OK = new HttpResponseStatus(200, "OK");
+
+    public DefaultHttpResponse() {
+        super(HttpVersion.HTTP_1_1, STATUS_OK);
     }
-
-    public DefaultHttpRequest(HttpMethod method, String uri) {
-        super(HttpVersion.HTTP_1_1, method, uri);
-    }
-
-    public DefaultHttpRequest(HttpVersion version, HttpMethod method, String uri) {
-        super(version, method, uri);
-    }
-
 }

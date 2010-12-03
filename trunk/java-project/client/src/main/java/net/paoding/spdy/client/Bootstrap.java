@@ -33,4 +33,11 @@ public interface Bootstrap {
      * @return
      */
     public Future<Connector> connect(String host, int port);
+
+    /**
+     * 销毁该引导器的资源(比如各个连接共享的线程池)，建议在所有连接都关闭后并sleep/await些许时间后再调用此方法
+     * <p>
+     * 不销毁仍在连接状态的连接，不保证仍在服务的连接可用(很可能是不可用)
+     */
+    public void destroy();
 }
