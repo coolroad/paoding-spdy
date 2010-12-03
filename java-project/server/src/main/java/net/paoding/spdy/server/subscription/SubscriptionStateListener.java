@@ -13,24 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.paoding.spdy.client;
-
-import org.jboss.netty.handler.codec.http.HttpResponse;
+package net.paoding.spdy.server.subscription;
 
 /**
- * 订阅侦听器
+ * 订阅状态侦听器
  * 
  * @author qieqie.wang@gmail.com
  * 
  */
-public interface SubscriptionListener {
+public interface SubscriptionStateListener {
 
     /**
-     * 当服务端向客户端推送消息时候此方法被调用
+     * 当该订阅被关闭时此方法被调用
+     * <p>
      * 
-     * @param subscription 所属的订阅
-     * @param response 推送的消息
+     * @param subscription
      */
-    void responseReceived(SubscriptionStub subscription, HttpResponse response);
-
+    public void closed(Subscription subscription);
 }

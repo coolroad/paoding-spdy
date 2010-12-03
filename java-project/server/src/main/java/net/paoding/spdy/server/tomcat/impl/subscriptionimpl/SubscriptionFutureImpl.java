@@ -13,51 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.paoding.spdy.client.netty;
+package net.paoding.spdy.server.tomcat.impl.subscriptionimpl;
 
 import java.util.concurrent.TimeUnit;
 
-import net.paoding.spdy.client.Connector;
-import net.paoding.spdy.client.Future;
-import net.paoding.spdy.client.FutureListener;
+import net.paoding.spdy.server.subscription.SubscriptionFutureListener;
+import net.paoding.spdy.server.subscription.Subscription;
+import net.paoding.spdy.server.subscription.SubscriptionFuture;
 
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 
 /**
- * {@link Future}的实现: 只关心本端的操作是否成功发送，不关心远程对等方的回应
  * 
  * @author qieqie.wang@gmail.com
  * 
- * @param <T>
  */
-class ChannelFutureAdapter<T> implements Future<T> {
+public class SubscriptionFutureImpl implements SubscriptionFuture {
 
-    /** 所属的连接 */
-    private final Connector connector;
+    private final SubscriptionImpl subscription;
 
-    /** 所属的channelFuture，所有对本future的操作都将通过channelFuture来实现 */
     private final ChannelFuture channelFuture;
 
-    /**
-     * 
-     * @param connector
-     * @param channelFuture
-     */
-    ChannelFutureAdapter(Connector connector, ChannelFuture channelFuture) {
-        this.connector = connector;
-        this.channelFuture = channelFuture;
+    public SubscriptionFutureImpl(SubscriptionImpl subscription, ChannelFuture write) {
+        this.subscription = subscription;
+        this.channelFuture = write;
     }
 
     @Override
-    public Connector getConnector() {
-        return connector;
-    }
-
-    @Override
-    public T get() {
-        // don't call this method
-        throw new UnsupportedOperationException();
+    public Subscription getSubscription() {
+        return subscription;
     }
 
     @Override
@@ -88,23 +73,23 @@ class ChannelFutureAdapter<T> implements Future<T> {
     }
 
     @Override
-    public void addListener(final FutureListener<T> listener) {
-        channelFuture.addListener(new FutureAdapter<T>(listener, this));
+    public void addListener(final SubscriptionFutureListener listener) {
+        channelFuture.addListener(new FutureAdapter(listener, this));
     }
 
     @Override
-    public void removeListener(FutureListener<T> listener) {
+    public void removeListener(SubscriptionFutureListener listener) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public Future<T> await() throws InterruptedException {
+    public SubscriptionFuture await() throws InterruptedException {
         channelFuture.await();
         return this;
     }
 
     @Override
-    public Future<T> awaitUninterruptibly() {
+    public SubscriptionFuture awaitUninterruptibly() {
         channelFuture.awaitUninterruptibly();
         return this;
     }
@@ -128,14 +113,14 @@ class ChannelFutureAdapter<T> implements Future<T> {
     public boolean awaitUninterruptibly(long timeoutMillis) {
         return channelFuture.awaitUninterruptibly(timeoutMillis);
     }
-    
-    static class FutureAdapter<T> implements ChannelFutureListener {
 
-        private final FutureListener<T> listener;
+    static class FutureAdapter implements ChannelFutureListener {
 
-        private final Future<T> future;
+        private final SubscriptionFutureListener listener;
 
-        public FutureAdapter(FutureListener<T> listener, Future<T> future) {
+        private final SubscriptionFuture future;
+
+        public FutureAdapter(SubscriptionFutureListener listener, SubscriptionFuture future) {
             this.listener = listener;
             this.future = future;
         }
@@ -145,6 +130,5 @@ class ChannelFutureAdapter<T> implements Future<T> {
             listener.operationComplete(this.future);
         }
     }
-
 
 }

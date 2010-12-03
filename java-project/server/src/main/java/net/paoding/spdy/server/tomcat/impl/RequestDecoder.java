@@ -1,3 +1,18 @@
+/*
+ * Copyright 2010-2011 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License i distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package net.paoding.spdy.server.tomcat.impl;
 
 import static org.jboss.netty.channel.Channels.fireMessageReceived;
@@ -12,9 +27,8 @@ import net.paoding.spdy.common.frame.frames.SpdyFrame;
 import net.paoding.spdy.common.frame.frames.StreamFrame;
 import net.paoding.spdy.common.frame.frames.SynStream;
 import net.paoding.spdy.common.supports.ExpireWheel;
-import net.paoding.spdy.server.subscription.ServerSubscription;
-import net.paoding.spdy.server.tomcat.impl.subscription.ServerSubscriptionImpl;
-import net.paoding.spdy.server.tomcat.impl.subscription.SubscriptionFactoryImpl;
+import net.paoding.spdy.server.subscription.Subscription;
+import net.paoding.spdy.server.tomcat.impl.subscriptionimpl.SubscriptionFactoryImpl;
 import net.paoding.spdy.server.tomcat.impl.supports.CoyoteAttributes;
 import net.paoding.spdy.server.tomcat.impl.supports.SpdyInputBuffer;
 
@@ -28,6 +42,11 @@ import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
 
+/**
+ * 
+ * @author qieqie.wang@gmail.com
+ * 
+ */
 public class RequestDecoder extends SimpleChannelHandler {
 
     protected static Log logger = LogFactory.getLog(RequestDecoder.class);
@@ -49,27 +68,28 @@ public class RequestDecoder extends SimpleChannelHandler {
         }
         if (msg instanceof SynStream) {
             SynStream syn = (SynStream) msg;
-            Request request = decode(syn);
-            if (request.method().equals("GET") && syn.getFlags() != SpdyFrame.FLAG_FIN) {
-                // it's a subscription
-                ServerSubscription subscription = subscriptionFactory.createSubscription(syn);
-                request.setAttribute(ServerSubscription.REQUEST_ATTR, subscription);
-                if (logger.isInfoEnabled()) {
-                    logger.info("Subscrib: " + request);
-                }
-                fireMessageReceived(ctx, request, e.getRemoteAddress());
-                return;
-            } else if (syn.getAssociatedId() > 0) {
-                ServerSubscriptionImpl subscription = subscriptionFactory.getSubscription(syn
+            if (syn.getAssociatedId() > 0) {
+                Subscription subscription = subscriptionFactory.getSubscription(syn
                         .getAssociatedId());
                 if (subscription != null && syn.getFlags() == SpdyFrame.FLAG_FIN) {
-                    subscription.setClosed();
+                    subscription.close();
                     if (logger.isInfoEnabled()) {
                         logger.info("Describ: " + subscription);
                     }
                 } else {
                     logger.warn("wrong synStream for : " + subscription + "; syn=" + syn);
                 }
+                return;
+            }
+            Request request = decode(syn);
+            if ("GET".equals(syn.getHeader("method")) && syn.getFlags() != SpdyFrame.FLAG_FIN) {
+                // it's a subscription
+                Subscription subscription = subscriptionFactory.createSubscription(syn);
+                request.setAttribute(Subscription.REQUEST_ATTR, subscription);
+                if (logger.isInfoEnabled()) {
+                    logger.info("Subscrib: " + request);
+                }
+                fireMessageReceived(ctx, request, e.getRemoteAddress());
                 return;
             } else {
                 if (syn.getFlags() != SpdyFrame.FLAG_FIN) {

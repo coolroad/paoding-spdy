@@ -29,8 +29,8 @@ import net.paoding.spdy.common.frame.PingListener;
 import net.paoding.spdy.common.supports.ExecutorUtil;
 import net.paoding.spdy.server.tomcat.impl.RequestDecoder;
 import net.paoding.spdy.server.tomcat.impl.RequestExecution;
-import net.paoding.spdy.server.tomcat.impl.subscription.SubscriptionEncoder;
-import net.paoding.spdy.server.tomcat.impl.subscription.SubscriptionFactoryImpl;
+import net.paoding.spdy.server.tomcat.impl.subscriptionimpl.SubscriptionEncoder;
+import net.paoding.spdy.server.tomcat.impl.subscriptionimpl.SubscriptionFactoryImpl;
 import net.paoding.spdy.server.tomcat.impl.supports.SpdyOutputBuffer;
 
 import org.apache.coyote.Adapter;

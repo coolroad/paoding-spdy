@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.paoding.spdy.client;
+package net.paoding.spdy.server.subscription;
 
 import java.util.concurrent.TimeUnit;
 
@@ -21,24 +21,16 @@ import java.util.concurrent.TimeUnit;
  * 
  * @author qieqie.wang@gmail.com
  * 
- * @param <T>
  */
-public interface Future<T> {
+public interface SubscriptionFuture {
 
     /**
      * 
-     * 返回该future所属的连接对象
+     * 返回该future所属的订阅对象
      * 
      * @return
      */
-    public Connector getConnector();
-
-    /**
-     * 返回该future的操作结果
-     * 
-     * @return
-     */
-    public T get();
+    public Subscription getSubscription();
 
     /**
      * Returns {@code true} if and only if this future is complete,
@@ -68,7 +60,7 @@ public interface Future<T> {
      * future is already completed, the specified listener is notified
      * immediately.
      */
-    void addListener(FutureListener<T> listener);
+    void addListener(SubscriptionFutureListener listener);
 
     /**
      * Removes the specified listener from this future. The specified
@@ -77,21 +69,21 @@ public interface Future<T> {
      * associated with this future, this method does nothing and returns
      * silently.
      */
-    void removeListener(FutureListener<T> listener);
+    void removeListener(SubscriptionFutureListener listener);
 
     /**
      * Waits for this future to be completed.
      * 
      * @throws InterruptedException if the current thread was interrupted
      */
-    Future<T> await() throws InterruptedException;
+    SubscriptionFuture await() throws InterruptedException;
 
     /**
      * Waits for this future to be completed without interruption. This
      * method catches an {@link InterruptedException} and discards it
      * silently.
      */
-    Future<T> awaitUninterruptibly();
+    SubscriptionFuture awaitUninterruptibly();
 
     /**
      * Waits for this future to be completed within the specified time

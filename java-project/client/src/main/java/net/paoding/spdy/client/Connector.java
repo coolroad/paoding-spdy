@@ -45,7 +45,7 @@ public interface Connector {
      * @param listener
      * @return
      */
-    Subscription subscribe(HttpRequest request, SubscriptionListener listener);
+    SubscriptionStub subscribe(HttpRequest request, SubscriptionListener listener);
 
     /**
      * 关闭connector，使不能再发送请求

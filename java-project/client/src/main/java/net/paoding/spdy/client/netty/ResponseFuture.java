@@ -107,7 +107,7 @@ class ResponseFuture<Request, Response> implements Future<Response> {
     }
 
     @Override
-    public Response getResponse() {
+    public Response get() {
         return response;
     }
 

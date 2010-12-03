@@ -24,7 +24,7 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  * @author qieqie.wang@gmail.com
  * 
  */
-public interface Subscription {
+public interface SubscriptionStub {
 
     /**
      * 所属的连接
@@ -52,13 +52,13 @@ public interface Subscription {
      * 
      * @return
      */
-    Future<Subscription> close();
+    Future<SubscriptionStub> close();
 
     /**
      * 返回 {@link #close()} 的future对象
      * 
      * @return
      */
-    Future<Subscription> getCloseFuture();
+    Future<SubscriptionStub> getCloseFuture();
 
 }

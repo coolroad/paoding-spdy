@@ -1,13 +1,30 @@
+/*
+ * Copyright 2010-2011 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License i distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package net.paoding.spdy.client.netty;
 
 import java.util.Map;
 
-import net.paoding.spdy.client.Subscription;
+import net.paoding.spdy.client.SubscriptionStub;
 import net.paoding.spdy.common.frame.frames.DataFrame;
+import net.paoding.spdy.common.frame.frames.HeaderStreamFrame;
 import net.paoding.spdy.common.frame.frames.SpdyFrame;
 import net.paoding.spdy.common.frame.frames.StreamFrame;
 import net.paoding.spdy.common.frame.frames.SynReply;
 import net.paoding.spdy.common.frame.frames.SynStream;
+import net.paoding.spdy.common.http.DefaultHttpResponse;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -18,10 +35,8 @@ import org.jboss.netty.channel.ChannelHandler.Sharable;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelUpstreamHandler;
 import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-import org.jboss.netty.handler.codec.http.HttpVersion;
 
 /**
  * 接受服务器下发的各种frame，解析为response对象，并提交给executor通知源操作的future告知成功
@@ -73,9 +88,19 @@ public class ResponseExecution implements ChannelUpstreamHandler {
                 logger.warn("not found future for " + msg);
             } else {
                 if (msg instanceof SynReply) {
-                    doWithSynReply(responseFuture, (SynReply) msg);
+                    responseFuture.setResponse(extractResponse((SynReply) msg));
                 } else if (msg instanceof DataFrame) {
-                    doWithDataFrame(responseFuture, (DataFrame) msg);
+                    HttpResponse response = responseFuture.get();
+                    ChannelBuffer content = response.getContent();
+                    ChannelBuffer chunk = ((DataFrame) frame).getData();
+                    if (chunk.readable()) {
+                        if (content.array().length == 0) {
+                            response.setContent(chunk);
+                        } else {
+                            content = ChannelBuffers.wrappedBuffer(content, chunk);
+                            response.setContent(content);
+                        }
+                    }
                 }
             }
         }
@@ -85,23 +110,15 @@ public class ResponseExecution implements ChannelUpstreamHandler {
         }
     }
 
-    private ResponseFuture<Subscription, HttpResponse> doWithSynFrame(int streamId, SynStream syn) {
+    private ResponseFuture<SubscriptionStub, HttpResponse> doWithSynFrame(int streamId,
+            SynStream syn) {
         if (syn.getFlags() == SpdyFrame.FLAG_UNIDIRECTIONAL) {
-            SubscriptionImpl subscription = connector.subscriptions.get(syn.getAssociatedId());
+            SubscriptionStubImpl subscription = connector.subscriptions.get(syn.getAssociatedId());
             if (subscription != null) {
-                final ResponseFuture<Subscription, HttpResponse> f = new ResponseFuture<Subscription, HttpResponse>(
+                ResponseFuture<SubscriptionStub, HttpResponse> f = new ResponseFuture<SubscriptionStub, HttpResponse>(
                         connector, subscription);
                 f.addListener(subscription.listener);
-                HttpResponseStatus status = new HttpResponseStatus(200, "OK");
-                HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
-                for (Map.Entry<String, String> header : syn.getHeaders().entrySet()) {
-                    String name = header.getKey();
-                    if (name.equals("version") || name.equals("status")) {
-                        continue;
-                    }
-                    response.setHeader(name, header.getValue());
-                }
-                f.setResponse(response);
+                f.setResponse(extractResponse(syn));
                 return f;
             } else {
                 logger.warn("not found subscription for SynFrame:" + syn + "  url="
@@ -114,54 +131,30 @@ public class ResponseExecution implements ChannelUpstreamHandler {
         return null;
     }
 
-    /**
-     * 处理SynReply帧
-     * 
-     * @param f
-     * @param reply
-     */
-    private void doWithSynReply(final ResponseFuture<?, HttpResponse> f, SynReply reply) {
-        HttpVersion version = HttpVersion.valueOf(reply.getHeader("version"));
-        String statusline = reply.getHeader("status");
-        int statusCode;
-        String reasonPhrase;
-        if (statusline.length() > 4) {
-            statusCode = Integer.parseInt(statusline.substring(0, 3));
-            reasonPhrase = statusline.substring(4);
-        } else {
-            statusCode = Integer.parseInt(statusline.substring(0, 3));
-            reasonPhrase = "";
+    private HttpResponse extractResponse(HeaderStreamFrame frame) {
+        HttpResponse response = new DefaultHttpResponse();
+        String statusline = frame.getHeader("status");
+        if (statusline != null && !"200 OK".equals(statusline)) {
+            int statusCode;
+            String reasonPhrase;
+            if (statusline.length() > 4) {
+                statusCode = Integer.parseInt(statusline.substring(0, 3));
+                reasonPhrase = statusline.substring(4);
+            } else {
+                statusCode = Integer.parseInt(statusline.substring(0, 3));
+                reasonPhrase = "";
+            }
+            HttpResponseStatus status = new HttpResponseStatus(statusCode, reasonPhrase);
+            response.setStatus(status);
         }
-        HttpResponseStatus status = new HttpResponseStatus(statusCode, reasonPhrase);
-        HttpResponse response = new DefaultHttpResponse(version, status);
-        for (Map.Entry<String, String> header : reply.getHeaders().entrySet()) {
+        for (Map.Entry<String, String> header : frame.getHeaders().entrySet()) {
             String name = header.getKey();
             if (name.equals("version") || name.equals("status")) {
                 continue;
             }
             response.setHeader(name, header.getValue());
         }
-        // 将repsonse设置为future的target
-        f.setResponse(response);
-    }
-
-    /**
-     * 处理DataFrame
-     * 
-     * @param f
-     * @param frame
-     */
-    private void doWithDataFrame(final ResponseFuture<?, HttpResponse> f, DataFrame frame) {
-        HttpResponse response = f.getResponse();
-        ChannelBuffer content = response.getContent();
-        if (frame.getData().readable()) {
-            if (content.array().length == 0) {
-                response.setContent(frame.getData());
-            } else {
-                content = ChannelBuffers.wrappedBuffer(content, frame.getData());
-                response.setContent(content);
-            }
-        }
+        return response;
     }
 
 }

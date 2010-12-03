@@ -13,24 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.paoding.spdy.client;
+package net.paoding.spdy.server.tomcat.impl.subscriptionimpl;
 
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
 /**
- * 订阅侦听器
  * 
  * @author qieqie.wang@gmail.com
  * 
  */
-public interface SubscriptionListener {
+class SpdyResponse {
 
-    /**
-     * 当服务端向客户端推送消息时候此方法被调用
-     * 
-     * @param subscription 所属的订阅
-     * @param response 推送的消息
-     */
-    void responseReceived(SubscriptionStub subscription, HttpResponse response);
+    private int associatedId;
+
+    private HttpResponse message;
+
+    private int streamId;
+
+    public SpdyResponse() {
+    }
+
+    public int getAssociatedId() {
+        return associatedId;
+    }
+
+    public void setAssociatedId(int associatedId) {
+        this.associatedId = associatedId;
+    }
+
+    public HttpResponse getMessage() {
+        return message;
+    }
+
+    public void setMessage(HttpResponse message) {
+        this.message = message;
+    }
+
+    public int getStreamId() {
+        return streamId;
+    }
+
+    public void setStreamId(int streamId) {
+        this.streamId = streamId;
+    }
 
 }

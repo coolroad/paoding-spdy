@@ -16,13 +16,15 @@
 package net.paoding.spdy.client.netty;
 
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import net.paoding.spdy.client.Connector;
 import net.paoding.spdy.client.Future;
-import net.paoding.spdy.client.Subscription;
 import net.paoding.spdy.client.SubscriptionListener;
+import net.paoding.spdy.client.SubscriptionStub;
 import net.paoding.spdy.common.frame.PingListener;
 import net.paoding.spdy.common.frame.frames.Ping;
 import net.paoding.spdy.common.frame.frames.SpdyFrame;
@@ -79,7 +81,7 @@ public class NettyConnector implements Connector, PingListener {
             1024 * 16, 1); // step is 1 not 2
 
     /** 当前的server-push订阅 */
-    Map<Integer, SubscriptionImpl> subscriptions = new HashMap<Integer, SubscriptionImpl>();
+    Map<Integer, SubscriptionStubImpl> subscriptions = new HashMap<Integer, SubscriptionStubImpl>();
 
     /**
      * 创建一个尚未连接的connector
@@ -147,7 +149,7 @@ public class NettyConnector implements Connector, PingListener {
     }
 
     /**
-     * 返回远程服务资源的默认URL前缀 (包括schema、host、port)
+     * 返回远程服务资源的默认URL前缀 (包括scheme、host、port)
      * 
      * @return
      */
@@ -193,13 +195,13 @@ public class NettyConnector implements Connector, PingListener {
     }
 
     @Override
-    public Subscription subscribe(HttpRequest request, SubscriptionListener listener) {
+    public SubscriptionStub subscribe(HttpRequest request, SubscriptionListener listener) {
         if (!isConnected()) {
             throw new IllegalStateException("not connected");
         }
         SpdyRequest spdyRequest = new SpdyRequest(getNextStreamId(), request, 1);
-        SubscriptionImpl subscription = new SubscriptionImpl(this, spdyRequest, listener);
-        ResponseFuture<Subscription, HttpResponse> responseFuture = new ResponseFuture<Subscription, HttpResponse>(
+        SubscriptionStubImpl subscription = new SubscriptionStubImpl(this, spdyRequest, listener);
+        ResponseFuture<SubscriptionStub, HttpResponse> responseFuture = new ResponseFuture<SubscriptionStub, HttpResponse>(
                 this, subscription);
         subscription.setResponseFuture(responseFuture);
         requests.put(spdyRequest.streamId, responseFuture);
@@ -234,6 +236,10 @@ public class NettyConnector implements Connector, PingListener {
 
     @Override
     public Future<Connector> close() {
+        List<SubscriptionStub> list = new ArrayList<SubscriptionStub>(subscriptions.values());
+        for (SubscriptionStub subscription : list) {
+            subscription.close();
+        }
         channel.close();
         return closeFuture;
     }
@@ -249,18 +255,18 @@ public class NettyConnector implements Connector, PingListener {
     /**
      * called by SubscriptionImpl#close()
      * 
-     * @param pushingImpl
+     * @param subscription
      * @return
-     * @see SubscriptionImpl#close()
+     * @see SubscriptionStubImpl#close()
      */
-    ChannelFuture desubscript(SubscriptionImpl pushingImpl) {
-        subscriptions.remove(pushingImpl.streamId);
+    ChannelFuture desubscript(SubscriptionStubImpl subscription) {
+        subscriptions.remove(subscription.streamId);
         if (isConnected()) {
             // 向服务器发送一个取消订阅的SynStream
             SynStream syn = new SynStream();
             syn.setChannel(this.channel);
             syn.setStreamId(getNextStreamId());
-            syn.setAssociatedId(pushingImpl.streamId);
+            syn.setAssociatedId(subscription.streamId);
             syn.setFlags(SpdyFrame.FLAG_FIN);
             return Channels.write(channel, syn);
         }

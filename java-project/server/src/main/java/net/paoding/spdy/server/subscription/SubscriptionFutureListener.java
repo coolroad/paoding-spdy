@@ -13,13 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.paoding.spdy.client.netty;
-
-import net.paoding.spdy.client.Future;
-import net.paoding.spdy.client.FutureListener;
-
-import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.ChannelFutureListener;
+package net.paoding.spdy.server.subscription;
 
 /**
  * 
@@ -27,19 +21,13 @@ import org.jboss.netty.channel.ChannelFutureListener;
  * 
  * @param <T>
  */
-public class FutureAdapter<T> implements ChannelFutureListener {
+public interface SubscriptionFutureListener {
 
-    private final FutureListener<T> listener;
-
-    private final Future<T> future;
-
-    public FutureAdapter(FutureListener<T> listener, Future<T> future) {
-        this.listener = listener;
-        this.future = future;
-    }
-
-    @Override
-    public void operationComplete(ChannelFuture cf) throws Exception {
-        listener.operationComplete(this.future);
-    }
+    /**
+     * 
+     * @param future
+     * @throws Exception
+     */
+    // TODO: 无法被调用
+    void operationComplete(SubscriptionFuture future) throws Exception;
 }
