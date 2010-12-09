@@ -141,8 +141,8 @@ public class RequestDecoder extends SimpleChannelHandler {
 
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        subscriptionFactory.close();
-        super.channelClosed(ctx, e);
+        subscriptionFactory.destory();
+        ctx.sendUpstream(e);
     }
 
     private Request decode(SynStream synStream) throws URISyntaxException {

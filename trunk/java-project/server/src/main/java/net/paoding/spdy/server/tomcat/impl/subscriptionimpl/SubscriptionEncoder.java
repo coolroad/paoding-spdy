@@ -54,9 +54,10 @@ public class SubscriptionEncoder extends SimpleChannelHandler {
             boolean emptyContent = content == null || !content.readable();
             if (emptyContent) {
                 synStream.setFlags(SpdyFrame.FLAG_FIN);
-                Channels.write(synStream.getChannel(), synStream);
+                Channels.write(ctx, e.getFuture(), synStream, e.getRemoteAddress());
             } else {
-                Channels.write(synStream.getChannel(), synStream);
+                // TODO: 这里不使用e.getFuture, 是否需要和下面的dataFrame合并为一个future
+                Channels.write(ctx.getChannel(), synStream, e.getRemoteAddress());
                 //
                 DataFrame dataFrame = new DataFrame();
                 dataFrame.setChannel(synStream.getChannel());
@@ -64,7 +65,7 @@ public class SubscriptionEncoder extends SimpleChannelHandler {
                 dataFrame.setFlags(SpdyFrame.FLAG_FIN);
                 dataFrame.setData(content);
                 // write dataFrame
-                Channels.write(synStream.getChannel(), dataFrame);
+                Channels.write(ctx, e.getFuture(), dataFrame, e.getRemoteAddress());
             }
         } else {
             ctx.sendDownstream(e);

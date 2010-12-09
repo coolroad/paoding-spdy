@@ -186,12 +186,13 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
     @Override
     public void channelOpen(ChannelHandlerContext ctx, ChannelStateEvent e) {
         allChannels.add(e.getChannel());
+        ctx.sendUpstream(e);
     }
 
-    // TODO: 客户端如果是强制关闭，如何通知服务器有关他的订阅已经无效？
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
         allChannels.remove(e.getChannel());
+        ctx.sendUpstream(e);
     }
 
     /**
@@ -256,7 +257,11 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
     /**
      * 关闭服务
      */
-    // TODO: 如何gracefull的关闭
+    // TODO: 如何gracefull的关闭: 
+    // 新来stream不接收(应该回送refuse-reply!不能不理会，特别是来自proxy的stream)
+    // 老stream的dataframe继续接收，等所有reponse都结束再真正shutdown!
+    
+    // 做完上面的这个TODO后，再看看有无必要"重载"Netty的ExecutorUtil.shutdown，如无必要则应该去掉
     public void destroy() {
         if (bootstrap != null) {
             // 先解除绑定

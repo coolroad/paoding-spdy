@@ -20,7 +20,7 @@ import java.util.Map;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
 /**
- * 代表一个客户端对服务器的订阅
+ * 代表一个客户端对服务器的订阅,当服务器接收到一个订阅并确认后必须调用 {@link #accept()}进行确认方才有效
  * 
  * @author qieqie.wang@gmail.com
  * 

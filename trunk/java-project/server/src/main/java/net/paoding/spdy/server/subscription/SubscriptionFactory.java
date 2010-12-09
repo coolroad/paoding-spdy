@@ -26,6 +26,7 @@ import net.paoding.spdy.common.frame.frames.SynStream;
 public interface SubscriptionFactory {
 
     /**
+     * 创建一个注册到本factory的订阅对象
      * 
      * @param syn
      * @return
@@ -33,12 +34,7 @@ public interface SubscriptionFactory {
     Subscription createSubscription(SynStream syn);
 
     /**
-     * 
-     * @param subscription
-     */
-    void register(Subscription subscription);
-
-    /**
+     * 获取注册到本factory的订阅对象
      * 
      * @param streamId
      * @return
@@ -46,8 +42,8 @@ public interface SubscriptionFactory {
     Subscription getSubscription(int streamId);
 
     /**
-     * 
+     * 注销该factory并关闭该Factory下的所有订阅对象
      */
-    void close();
+    void destory();
 
 }

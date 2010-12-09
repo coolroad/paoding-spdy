@@ -99,15 +99,13 @@ public class SubscriptionImpl implements Subscription {
         return factory;
     }
 
+    // 和close()同步
     @Override
     public synchronized void accept() {
-        if (isClosed()) {
+        if (closed) {
             throw new IllegalStateException("closed");
         }
-        if (!accepted) {
-            factory.register(this);
-            accepted = true;
-        }
+        accepted = true;
     }
 
     @Override
@@ -171,13 +169,14 @@ public class SubscriptionImpl implements Subscription {
         return new SubscriptionFutureImpl(this, channelFuture);
     }
 
+    // 和accept()同步
     @Override
-    public void close() {
+    public synchronized void close() {
         if (closed) {
             return;
         }
         closed = true;
-        factory.subscriptionClosed(this);
+        factory.deregister(this);
         listeners.setSuccess();
         this.attributes = null;
         this.channel = null;
