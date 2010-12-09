@@ -28,6 +28,5 @@ public interface SubscriptionFutureListener {
      * @param future
      * @throws Exception
      */
-    // TODO: 无法被调用
     void operationComplete(SubscriptionFuture future) throws Exception;
 }

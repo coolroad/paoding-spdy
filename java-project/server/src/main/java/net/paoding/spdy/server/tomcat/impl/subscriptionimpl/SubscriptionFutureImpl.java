@@ -17,9 +17,9 @@ package net.paoding.spdy.server.tomcat.impl.subscriptionimpl;
 
 import java.util.concurrent.TimeUnit;
 
-import net.paoding.spdy.server.subscription.SubscriptionFutureListener;
 import net.paoding.spdy.server.subscription.Subscription;
 import net.paoding.spdy.server.subscription.SubscriptionFuture;
+import net.paoding.spdy.server.subscription.SubscriptionFutureListener;
 
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -53,14 +53,6 @@ public class SubscriptionFutureImpl implements SubscriptionFuture {
     @Override
     public boolean isSuccess() {
         return channelFuture.isSuccess();
-    }
-
-    boolean setSuccess() {
-        return channelFuture.setSuccess();
-    }
-
-    boolean setFailure(Throwable cause) {
-        return channelFuture.setFailure(cause);
     }
 
     boolean cancel() {

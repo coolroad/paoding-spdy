@@ -38,20 +38,9 @@ public class SubscriptionFactoryImpl implements SubscriptionFactory {
 
     @Override
     public Subscription createSubscription(SynStream syn) {
-        return new SubscriptionImpl(this, syn);
-    }
-
-    /**
-     * 
-     * @param subscription
-     * @throws IllegalStateException
-     */
-    @Override
-    public void register(Subscription subscription) {
-        if (subscription.getFactory() != this) {
-            throw new IllegalStateException("wrong factory");
-        }
+        Subscription subscription = new SubscriptionImpl(this, syn);
         subscriptions.put(subscription.getAssociatedId(), subscription);
+        return subscription;
     }
 
     @Override
@@ -59,12 +48,13 @@ public class SubscriptionFactoryImpl implements SubscriptionFactory {
         return subscriptions.get(streamId);
     }
 
-    public void subscriptionClosed(SubscriptionImpl sub) {
-        subscriptions.remove(sub.getAssociatedId());
+    // package access
+    void deregister(Subscription subscription) {
+        subscriptions.remove(subscription.getAssociatedId());
     }
 
     @Override
-    public void close() {
+    public void destory() {
         List<Subscription> list = new ArrayList<Subscription>(subscriptions.values());
         for (Subscription subscription : list) {
             subscription.close();
