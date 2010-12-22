@@ -3,6 +3,7 @@ package net.paoding.spdy.common.frame.frames;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Map;
+import java.util.zip.DataFormatException;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 
@@ -12,7 +13,7 @@ import org.jboss.netty.buffer.ChannelBuffer;
  * @author qieqie.wang@gmail.com
  * 
  */
-public class SynStream extends ControlFrame implements HeaderStreamFrame {
+public class SynStream extends ControlFrame implements HeaderStreamFrame, FlaterConfigurable {
 
     public static final int TYPE = 1;
 
@@ -67,12 +68,19 @@ public class SynStream extends ControlFrame implements HeaderStreamFrame {
         this.associatedId = associatedId;
     }
 
+    private boolean usingDecompressing = true;
+
     @Override
-    public void decodeData(ChannelBuffer buffer) {
+    public void setUsingFlater(boolean usingDecompressing) {
+        this.usingDecompressing = usingDecompressing;
+    }
+
+    @Override
+    public void decodeData(ChannelBuffer buffer, int length) throws DataFormatException {
         this.streamId = Math.abs(buffer.readInt());
         this.associatedId = Math.abs(buffer.readInt());
         buffer.skipBytes(2); // skip Priority(2bits) & Unused(14bits) 
-        this.headers = HeaderUtil.decode(buffer);
+        this.headers = HeaderUtil.decode(buffer, length - 10, usingDecompressing);
     }
 
     @Override
@@ -80,15 +88,15 @@ public class SynStream extends ControlFrame implements HeaderStreamFrame {
         buffer.writeInt(streamId);
         buffer.writeInt(associatedId);
         buffer.writeShort(0);
-        HeaderUtil.encode(headers, buffer);
+        HeaderUtil.encode(headers, buffer, true);
     }
 
     @Override
     public String toString() {
-        return String.format(
-                "SynStream[streamId=%s, flags=%s, associatedId=%s, headers.size=%s, timestamp=%s]",
-                streamId, flags, associatedId, headers.size(), new SimpleDateFormat(
-                        "yyyy-MM-dd HH:mm:ss").format(getTimestamp()));
+        return String
+                .format("SynStream[streamId=%s, flags=%s, associatedId=%s, headers.size=%s, timestamp=%s, deflate=%s]",
+                        streamId, flags, associatedId, headers.size(), new SimpleDateFormat(
+                                "yyyy-MM-dd HH:mm:ss").format(getTimestamp()), usingDecompressing);
     }
 
 }

@@ -2,6 +2,7 @@ package net.paoding.spdy.common.frame;
 
 import java.util.Map;
 
+import net.paoding.spdy.common.frame.frames.FlaterConfigurable;
 import net.paoding.spdy.common.frame.frames.ControlFrame;
 import net.paoding.spdy.common.frame.frames.DataFrame;
 import net.paoding.spdy.common.frame.frames.HeaderStreamFrame;
@@ -12,7 +13,6 @@ import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelHandler.Sharable;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.handler.codec.oneone.OneToOneEncoder;
@@ -23,14 +23,22 @@ import org.jboss.netty.handler.codec.oneone.OneToOneEncoder;
  * @author qieqie.wang@gmail.com
  * 
  */
-@Sharable
 public class FrameEncoder extends OneToOneEncoder {
 
     private static Log logger = LogFactory.getLog(FrameEncoder.class);
 
+    private ChannelConfig config;
+
+    public FrameEncoder(ChannelConfig config) {
+        this.config = config;
+    }
+
     @Override
     protected Object encode(ChannelHandlerContext ctx, Channel channel, Object msg)
             throws Exception {
+        if (msg instanceof FlaterConfigurable) {
+            ((FlaterConfigurable) msg).setUsingFlater(config.usingFlater);
+        }
         // 控制帧编码
         if (msg instanceof ControlFrame) {
             ControlFrame frame = (ControlFrame) msg;

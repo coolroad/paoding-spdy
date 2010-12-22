@@ -23,7 +23,8 @@ import java.util.concurrent.Executors;
 import net.paoding.spdy.client.Bootstrap;
 import net.paoding.spdy.client.Connector;
 import net.paoding.spdy.client.Future;
-import net.paoding.spdy.common.frame.FrameDecoder3;
+import net.paoding.spdy.common.frame.ChannelConfig;
+import net.paoding.spdy.common.frame.FrameDecoder;
 import net.paoding.spdy.common.frame.FrameEncoder;
 import net.paoding.spdy.common.frame.PingExecution;
 
@@ -113,12 +114,13 @@ public class NettyBootstrap implements Bootstrap {
 
             @Override
             public ChannelPipeline getPipeline() throws Exception {
+                ChannelConfig config = new ChannelConfig();
 
                 ChannelPipeline pipeline = Channels.pipeline();
-                pipeline.addLast("frameDecoder", new FrameDecoder3());
+                pipeline.addLast("frameDecoder", new FrameDecoder(config));
                 pipeline.addLast("pingExecution", new PingExecution(connecting));
                 pipeline.addLast("responseExecution", new ResponseExecution(connecting));
-                pipeline.addLast("frameEncoder", new FrameEncoder());
+                pipeline.addLast("frameEncoder", new FrameEncoder(config));
                 pipeline.addLast("requestEncoder", new RequestEncoder(connecting, false));
                 return pipeline;
             }

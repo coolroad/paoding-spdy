@@ -15,6 +15,9 @@
  */
 package net.paoding.spdy.common.frame;
 
+import java.util.zip.DataFormatException;
+
+import net.paoding.spdy.common.frame.frames.FlaterConfigurable;
 import net.paoding.spdy.common.frame.frames.ControlFrame;
 import net.paoding.spdy.common.frame.frames.DataFrame;
 import net.paoding.spdy.common.frame.frames.Ping;
@@ -41,9 +44,9 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
  * @author qieqie.wang@gmail.com
  * 
  */
-public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
+public class FrameDecoder extends SimpleChannelUpstreamHandler {
 
-    private static Log logger = LogFactory.getLog(FrameDecoder3.class);
+    private static Log logger = LogFactory.getLog(FrameDecoder.class);
 
     // messageReceived时用于decode的buffer,messageReceived完毕后buffer归null
     private ChannelBuffer buffer;
@@ -54,7 +57,10 @@ public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
 
     private int historyMaxCapacity = 512;
 
-    public FrameDecoder3() {
+    private ChannelConfig config;
+
+    public FrameDecoder(ChannelConfig config) {
+        this.config = config;
     }
 
     @Override
@@ -100,7 +106,7 @@ public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
         }
     }
 
-    private SpdyFrame decode(ChannelHandlerContext ctx) {
+    private SpdyFrame decode(ChannelHandlerContext ctx) throws Exception {
         int first = buffer.readByte();
         buffer.resetReaderIndex();
         SpdyFrame frame;
@@ -112,7 +118,7 @@ public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
         return frame;
     }
 
-    private ControlFrame decodeControlFrame(ChannelHandlerContext ctx) {
+    private ControlFrame decodeControlFrame(ChannelHandlerContext ctx) throws Exception {
         int version = -buffer.readShort();
         if (version != 1) {
             throw new IllegalArgumentException("version should be 1");
@@ -127,7 +133,22 @@ public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
         ControlFrame frame = newControlFrame(type);
         frame.setFlags(flags);
         frame.setChannel(ctx.getChannel());
-        frame.decodeData(buffer);
+        int readerIndex = buffer.readerIndex();
+        try {
+            frame.decodeData(buffer, length);
+        } catch (DataFormatException e) {
+            if (config.usingFlater) {
+                logger.error(
+                        "dataFormateException happened, now we change usingFlater to false for client "
+                                + ctx.getChannel().getRemoteAddress(), e);
+                config.usingFlater = false;
+                ((FlaterConfigurable) frame).setUsingFlater(false);
+                buffer.readerIndex(readerIndex);
+                frame.decodeData(buffer, length);
+            } else {
+                throw e;
+            }
+        }
         if (buffer.readableBytes() != expectedExceed) {
             throw new IllegalStateException("expected read " + length + " bytes, actuall "
                     + (length - buffer.readableBytes() + expectedExceed));
@@ -201,17 +222,26 @@ public class FrameDecoder3 extends SimpleChannelUpstreamHandler {
     }
 
     private ControlFrame newControlFrame(int type) {
+        ControlFrame frame;
         switch (type) {
             case SynStream.TYPE:
-                return new SynStream();
+                frame = new SynStream();
+                break;
             case SynReply.TYPE:
-                return new SynReply();
+                frame = new SynReply();
+                break;
             case RstStream.TYPE:
-                return new RstStream();
+                frame = new RstStream();
+                break;
             case Ping.TYPE:
-                return new Ping();
+                frame = new Ping();
+                break;
             default:
                 throw new IllegalArgumentException("invalid control type " + type);
         }
+        if (frame instanceof FlaterConfigurable) {
+            ((FlaterConfigurable) frame).setUsingFlater(config.usingFlater);
+        }
+        return frame;
     }
 }

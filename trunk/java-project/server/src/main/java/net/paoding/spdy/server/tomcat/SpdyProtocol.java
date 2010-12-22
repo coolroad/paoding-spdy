@@ -22,7 +22,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import net.paoding.spdy.common.frame.FrameDecoder3;
+import net.paoding.spdy.common.frame.ChannelConfig;
+import net.paoding.spdy.common.frame.FrameDecoder;
 import net.paoding.spdy.common.frame.FrameEncoder;
 import net.paoding.spdy.common.frame.PingExecution;
 import net.paoding.spdy.common.frame.PingListener;
@@ -224,15 +225,16 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
 
             @Override
             public ChannelPipeline getPipeline() throws Exception {
+                ChannelConfig config = new ChannelConfig();
                 ChannelPipeline pipeline = Channels.pipeline();
                 pipeline.addLast("logger", loggingHandler);
                 pipeline.addLast("allChannels", SpdyProtocol.this);
-                pipeline.addLast("frameDecoder", new FrameDecoder3());
+                pipeline.addLast("frameDecoder", new FrameDecoder(config));
                 pipeline.addLast("pingExecution", pingExecution);
                 pipeline.addLast("coyoteRequestDecoder", new RequestDecoder(
                         new SubscriptionFactoryImpl()));
                 pipeline.addLast("coyoteRequestExecution", requestExecution);
-                pipeline.addLast("frameEncoder", new FrameEncoder());
+                pipeline.addLast("frameEncoder", new FrameEncoder(config));
                 pipeline.addLast("subscriptionEncoder", subscriptionEncoder);
                 return pipeline;
             }
@@ -260,7 +262,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
     // TODO: 如何gracefull的关闭: 
     // 新来stream不接收(应该回送refuse-reply!不能不理会，特别是来自proxy的stream)
     // 老stream的dataframe继续接收，等所有reponse都结束再真正shutdown!
-    
+
     // 做完上面的这个TODO后，再看看有无必要"重载"Netty的ExecutorUtil.shutdown，如无必要则应该去掉
     public void destroy() {
         if (bootstrap != null) {
