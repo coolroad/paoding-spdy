@@ -65,7 +65,7 @@ public class HeaderUtil {
             inflater = new Inflater();
             inflater.setInput(buffer.array(), buffer.readerIndex(), length - 2);
             buffer.skipBytes(length - 2);
-            ChannelBuffer tbuffer = ChannelBuffers.dynamicBuffer(length);
+            ChannelBuffer tbuffer = ChannelBuffers.dynamicBuffer(length < 128 ? 128 : length);
             int inflated = inflater.inflate(tbuffer.array());
             if (inflated == 0 && inflater.needsDictionary()) {
                 inflater.setDictionary(dictionary);
@@ -82,7 +82,8 @@ public class HeaderUtil {
                 tbuffer.writerIndex(writerIndex + inflated);
                 if (debugEnabled) {
                     logger.debug("expand decode ouput: expand "
-                            + (tbuffer.array().length - writerIndex) + "  actual " + inflated);
+                            + (tbuffer.array().length - writerIndex) + "  actual " + inflated
+                            + " readbles " + tbuffer.readableBytes());
                 }
             }
             inflater.end();
@@ -144,7 +145,7 @@ public class HeaderUtil {
             deflater.setDictionary(dictionary);
             deflater.setInput(buffer.array(), offset, buffer.writerIndex() - offset);
             deflater.finish();
-            ChannelBuffer tbuffer = ChannelBuffers.dynamicBuffer();
+            ChannelBuffer tbuffer = ChannelBuffers.dynamicBuffer(buffer.array().length);
             int deflated = deflater.deflate(tbuffer.array());
             tbuffer.writerIndex(deflated);
             while (tbuffer.writerIndex() == tbuffer.array().length) {
@@ -155,8 +156,9 @@ public class HeaderUtil {
                 //
                 tbuffer.writerIndex(writerIndex + deflated);
                 if (debugEnabled) {
-                    logger.debug("expand decode ouput: expand "
-                            + (tbuffer.array().length - writerIndex) + "  actual " + deflated);
+                    logger.debug("expand encode ouput: expand "
+                            + (tbuffer.array().length - writerIndex) + "  actual " + deflated
+                            + "  readable " + tbuffer.readableBytes());
                 }
             }
             deflater.end();
