@@ -36,6 +36,7 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  * @author qieqie.wang@gmail.com
  * 
  */
+// TODO: 订阅的取消还得阅读spdy协议，按照协议的规范实现Server Implementation＆Client Implementation
 public class SubscriptionImpl implements Subscription {
 
     private static int nextStreamId = 2;

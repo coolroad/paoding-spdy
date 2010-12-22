@@ -82,7 +82,7 @@ public class Ping extends ControlFrame {
     }
 
     @Override
-    public void decodeData(ChannelBuffer buffer) {
+    public void decodeData(ChannelBuffer buffer, int length) {
         this.id = buffer.readInt();
     }
 

@@ -42,14 +42,14 @@ public class Main {
         //            Thread.sleep(10000);
         System.out.println("entered");
 
-        DefaultHttpRequest request2 = new DefaultHttpRequest("get", "/the8/register");
-        SubscriptionStub sub = connector.subscribe(request2, new SubscriptionListener() {
+        DefaultHttpRequest subRequest = new DefaultHttpRequest("get", "/the8/register");
+        SubscriptionStub sub = connector.subscribe(subRequest, new SubscriptionListener() {
 
             @Override
             public void responseReceived(SubscriptionStub subscription, HttpResponse response) {
 
                 String msg = getContentAsString(response);
-                System.out.println("subscription.content=" + msg);
+                System.out.println("subscription responseReceived: content=" + msg);
                 if ("close".equals(msg)) {
                     System.out.println("closing by server-push");
                     // 不能在IO线程中close,否则关闭不掉

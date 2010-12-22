@@ -1,5 +1,7 @@
 package net.paoding.spdy.common.frame.frames;
 
+import java.util.zip.DataFormatException;
+
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 
@@ -39,8 +41,9 @@ public abstract class ControlFrame implements SpdyFrame {
      * 解码：从buffer中解出该frame的数据
      * 
      * @param buffer
+     * @throws Exception
      */
-    public abstract void decodeData(ChannelBuffer buffer);
+    public abstract void decodeData(ChannelBuffer buffer, int length) throws Exception;
 
     /**
      * 编码：将该frame体内容写入buffer中

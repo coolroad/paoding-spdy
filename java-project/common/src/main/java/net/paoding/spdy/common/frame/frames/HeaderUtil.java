@@ -3,10 +3,14 @@ package net.paoding.spdy.common.frame.frames;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.zip.DataFormatException;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 
 /**
  * Header编解码
@@ -20,17 +24,69 @@ public class HeaderUtil {
 
     private final static Log logger = LogFactory.getLog(HeaderUtil.class);
 
+    // SPDY Protocol - Draft 2 : Name/Value header block format
+    private final static byte[] dictionary = (""//
+            + "optionsgetheadpostputdeletetraceacceptaccept-charsetaccept-encodingaccept-"
+            + "languageauthorizationexpectfromhostif-modified-sinceif-matchif-none-matchi"
+            + "f-rangeif-unmodifiedsincemax-forwardsproxy-authorizationrangerefererteuser"
+            + "-agent10010120020120220320420520630030130230330430530630740040140240340440"
+            + "5406407408409410411412413414415416417500501502503504505accept-rangesageeta"
+            + "glocationproxy-authenticatepublicretry-afterservervarywarningwww-authentic"
+            + "ateallowcontent-basecontent-encodingcache-controlconnectiondatetrailertran"
+            + "sfer-encodingupgradeviawarningcontent-languagecontent-lengthcontent-locati"
+            + "oncontent-md5content-rangecontent-typeetagexpireslast-modifiedset-cookieMo"
+            + "ndayTuesdayWednesdayThursdayFridaySaturdaySundayJanFebMarAprMayJunJulAugSe"
+            + "pOctNovDecchunkedtext/htmlimage/pngimage/jpgimage/gifapplication/xmlapplic"
+            + "ation/xhtmltext/plainpublicmax-agecharset=iso-8859-1utf-8gzipdeflateHTTP/1"
+            + ".1statusversionurl"//
+    ).getBytes();
+
+    private static final byte[] bytes32 = new byte[32];
+
     /**
      * 解码
      * 
      * @param buffer
      * @return
+     * @throws DataFormatException
      */
-    public static Map<String, String> decode(ChannelBuffer buffer) {
+    public static Map<String, String> decode(ChannelBuffer buffer, int length,
+            boolean usingDecompressing) throws DataFormatException {
         int size = buffer.readUnsignedShort();
         boolean debugEnabled = logger.isDebugEnabled();
         if (debugEnabled) {
             logger.debug("decoding: headers.size=" + size);
+        }
+        Inflater inflater = null;
+        if (usingDecompressing) {
+            if (debugEnabled) {
+                logger.debug("decoding: using decompressing");
+            }
+            inflater = new Inflater();
+            inflater.setInput(buffer.array(), buffer.readerIndex(), length - 2);
+            buffer.skipBytes(length - 2);
+            ChannelBuffer tbuffer = ChannelBuffers.dynamicBuffer(length);
+            int inflated = inflater.inflate(tbuffer.array());
+            if (inflated == 0 && inflater.needsDictionary()) {
+                inflater.setDictionary(dictionary);
+                inflated = inflater.inflate(tbuffer.array());
+            }
+            tbuffer.writerIndex(inflated);
+            while (tbuffer.writerIndex() == tbuffer.array().length) {
+                // expand the array
+                final int writerIndex = tbuffer.writerIndex();
+                tbuffer.writeBytes(bytes32);
+                inflated = inflater.inflate(tbuffer.array(), writerIndex, tbuffer.array().length
+                        - writerIndex);
+                //
+                tbuffer.writerIndex(writerIndex + inflated);
+                if (debugEnabled) {
+                    logger.debug("expand decode ouput: expand "
+                            + (tbuffer.array().length - writerIndex) + "  actual " + inflated);
+                }
+            }
+            inflater.end();
+            buffer = tbuffer;
         }
         Map<String, String> pairs = new HashMap<String, String>(size);
         for (int i = 0; i < size; i++) {
@@ -56,12 +112,15 @@ public class HeaderUtil {
      * @param headers
      * @param buffer
      */
-    public static void encode(Map<String, String> headers, ChannelBuffer buffer) {
+    public static void encode(Map<String, String> headers, ChannelBuffer buffer,
+            boolean usingCompressing) {
         buffer.writeShort(headers.size());
         boolean debugEnabled = logger.isDebugEnabled();
         if (debugEnabled) {
             logger.debug("encoding: headers.size=" + headers.size());
         }
+        final int offset = buffer.writerIndex();
+        //
         int index = 0;
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             String keyString = entry.getKey().trim();
@@ -76,6 +135,33 @@ public class HeaderUtil {
                 logger.debug("encoding: [" + index + "/" + headers.size() + "] " + keyString + "='"
                         + entry.getValue() + "'");
             }
+        }
+        if (usingCompressing) {
+            if (debugEnabled) {
+                logger.debug("decoding: using compressing");
+            }
+            Deflater deflater = new Deflater();
+            deflater.setDictionary(dictionary);
+            deflater.setInput(buffer.array(), offset, buffer.writerIndex() - offset);
+            deflater.finish();
+            ChannelBuffer tbuffer = ChannelBuffers.dynamicBuffer();
+            int deflated = deflater.deflate(tbuffer.array());
+            tbuffer.writerIndex(deflated);
+            while (tbuffer.writerIndex() == tbuffer.array().length) {
+                final int writerIndex = tbuffer.writerIndex();
+                tbuffer.writeBytes(bytes32);
+                deflated = deflater.deflate(//
+                        tbuffer.array(), writerIndex, tbuffer.array().length - writerIndex);
+                //
+                tbuffer.writerIndex(writerIndex + deflated);
+                if (debugEnabled) {
+                    logger.debug("expand decode ouput: expand "
+                            + (tbuffer.array().length - writerIndex) + "  actual " + deflated);
+                }
+            }
+            deflater.end();
+            buffer.writerIndex(offset);
+            buffer.writeBytes(tbuffer);
         }
     }
 

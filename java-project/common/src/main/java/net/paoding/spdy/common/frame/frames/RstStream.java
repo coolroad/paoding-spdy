@@ -96,7 +96,7 @@ public class RstStream extends ControlFrame implements HeaderStreamFrame {
     }
 
     @Override
-    public void decodeData(ChannelBuffer buffer) {
+    public void decodeData(ChannelBuffer buffer, int length) {
         this.streamId = Math.abs(buffer.readInt());
         this.statusCode = buffer.readInt();
     }

@@ -20,7 +20,7 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpVersion;
 
 /**
- * 更简便的 {@link HttpRequest}，默认使用http 1.1版本号
+ * 更简便的 {@link HttpRequest}，默认使用http 1.1版本号，所有的header小写化
  * 
  * @author qieqie.wang@gmail.com
  * 
@@ -37,6 +37,26 @@ public class DefaultHttpRequest extends org.jboss.netty.handler.codec.http.Defau
 
     public DefaultHttpRequest(HttpVersion version, HttpMethod method, String uri) {
         super(version, method, uri);
+    }
+
+    @Override
+    public void addHeader(String name, Object value) {
+        super.addHeader(name.toLowerCase(), value);
+    }
+
+    @Override
+    public void setHeader(String name, Iterable<?> values) {
+        super.setHeader(name.toLowerCase(), values);
+    }
+
+    @Override
+    public void setHeader(String name, Object value) {
+        super.setHeader(name.toLowerCase(), value);
+    }
+
+    @Override
+    public void removeHeader(String name) {
+        super.removeHeader(name.toLowerCase());
     }
 
 }

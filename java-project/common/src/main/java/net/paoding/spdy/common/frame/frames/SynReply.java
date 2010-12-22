@@ -1,8 +1,24 @@
+/*
+ * Copyright 2010-2011 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License i distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package net.paoding.spdy.common.frame.frames;
 
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Map;
+import java.util.zip.DataFormatException;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 
@@ -12,7 +28,7 @@ import org.jboss.netty.buffer.ChannelBuffer;
  * @author qieqie.wang
  * 
  */
-public class SynReply extends ControlFrame implements HeaderStreamFrame {
+public class SynReply extends ControlFrame implements HeaderStreamFrame, FlaterConfigurable {
 
     /** SYN_REPLY的类型值 */
     public static final int TYPE = 2;
@@ -51,25 +67,32 @@ public class SynReply extends ControlFrame implements HeaderStreamFrame {
         return headers.get(name);
     }
 
+    private boolean usingDecompressing = true;
+
     @Override
-    public void decodeData(ChannelBuffer buffer) {
+    public void setUsingFlater(boolean usingDecompressing) {
+        this.usingDecompressing = usingDecompressing;
+    }
+
+    @Override
+    public void decodeData(ChannelBuffer buffer, int length) throws DataFormatException {
         this.streamId = Math.abs(buffer.readInt());
         buffer.skipBytes(2); // Unused
-        this.headers = HeaderUtil.decode(buffer);
+        this.headers = HeaderUtil.decode(buffer, length - 6, usingDecompressing);
     }
 
     @Override
     public void encodeData(ChannelBuffer buffer) {
         buffer.writeInt(streamId);
         buffer.writeShort(0);
-        HeaderUtil.encode(headers, buffer);
+        HeaderUtil.encode(headers, buffer, usingDecompressing);
     }
 
     @Override
     public String toString() {
-        return String.format("SynRely[streamId=%s, flags=%s, headers.size=%s, timestamp=%s]",
+        return String.format("SynRely[streamId=%s, flags=%s, headers.size=%s, timestamp=%s, deflate=%s]",
                 streamId, flags, headers.size(),
-                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(getTimestamp()));
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(getTimestamp()), usingDecompressing);
     }
 
 }
