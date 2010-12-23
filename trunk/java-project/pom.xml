@@ -17,11 +17,12 @@
 			<url>http://repository.jboss.org/nexus/content/groups/public-jboss/</url>
 		</repository>
 	</repositories>
-	
+
 	<modules>
 		<module>common</module>
 		<module>server</module>
 		<module>client</module>
+		<module>test</module>
 	</modules>
 
 	<dependencies>
@@ -53,6 +54,20 @@
 				</excludes>
 			</resource>
 		</resources>
+		<testResources>
+			<testResource>
+				<directory>src/test/webapp</directory>
+				<targetPath>target/test</targetPath>
+				<filtering>true</filtering>
+			</testResource>
+			<testResource>
+				<directory>src/test/java</directory>
+				<excludes>
+					<exclude>.svn</exclude>
+				</excludes>
+			</testResource>
+		</testResources>
+
 		<plugins>
 			<!-- 使用1.6级别编译；代码为UTF-8编码；只编译指定的位置 -->
 			<plugin>

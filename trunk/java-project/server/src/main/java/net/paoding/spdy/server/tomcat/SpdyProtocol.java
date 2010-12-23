@@ -19,6 +19,7 @@ import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -64,7 +65,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
 
     private Adapter adapter;
 
-    private ExecutorService executor;
+    private Executor executor;
 
     // 用于标识executor是自己创建的，还是外部设置进来的
     private boolean sharedExecutor;
@@ -125,7 +126,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
      * 
      * @param executor
      */
-    public void setExecutor(ExecutorService executor) {
+    public void setExecutor(Executor executor) {
         if (this.executor != null) {
             throw new IllegalStateException("executor can't change once set.");
         }
@@ -138,7 +139,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
      * 
      * @return
      */
-    protected synchronized ExecutorService getExecutor() {
+    protected synchronized Executor getExecutor() {
         if (executor == null) {
             executor = Executors.newCachedThreadPool();
             this.sharedExecutor = false;
@@ -280,6 +281,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
             adapter = null;
             pingListener = null;
             attributes = null;
+            logger.info("SPDY unbind from " + bind);
         }
     }
 
