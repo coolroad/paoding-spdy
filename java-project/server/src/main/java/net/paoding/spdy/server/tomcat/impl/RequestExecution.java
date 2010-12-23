@@ -21,7 +21,7 @@ import static org.apache.coyote.ActionCode.ACTION_COMMIT;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 import net.paoding.spdy.server.tomcat.impl.hook.Action;
 import net.paoding.spdy.server.tomcat.impl.hook.ClientFlush;
@@ -54,11 +54,11 @@ public class RequestExecution extends SimpleChannelHandler {
 
     private Adapter coyoteAdapter;
 
-    private ExecutorService requstExecutor;
+    private Executor requstExecutor;
 
     private int ouputBufferSize;
 
-    public RequestExecution(ExecutorService executor, Adapter adapter, int ouputBufferSize) {
+    public RequestExecution(Executor executor, Adapter adapter, int ouputBufferSize) {
         this.requstExecutor = executor;
         this.coyoteAdapter = adapter;
         this.ouputBufferSize = ouputBufferSize;
@@ -71,7 +71,7 @@ public class RequestExecution extends SimpleChannelHandler {
             final Request request = (Request) msg;
             final Response response = createResponse(request, e.getChannel().getConfig()
                     .getBufferFactory());
-            requstExecutor.submit(new Runnable() {
+            requstExecutor.execute(new Runnable() {
 
                 @Override
                 public void run() {
