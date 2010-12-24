@@ -1,7 +1,5 @@
 package net.paoding.spdy.common.frame.frames;
 
-import java.util.zip.DataFormatException;
-
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 
@@ -9,16 +7,21 @@ import org.jboss.netty.channel.Channel;
  * 所有具体的控制帧都继承此类
  * 
  * @author qieqie.wang
- * 
+ * @author weibo.leo@gmail.com
  */
 public abstract class ControlFrame implements SpdyFrame {
 
     //----------------------------------------------------------------
 
+	/**
+	 * 协议版本号, 默认为1
+	 */
+	private int version = 1;
+	
     protected int flags;
 
     protected Channel channel;
-
+    
     private long timestamp;
 
     private final int type;
@@ -29,6 +32,17 @@ public abstract class ControlFrame implements SpdyFrame {
     }
 
     /**
+     * @return 协议版本号
+     */
+    public int getVersion() {
+		return version;
+	}
+
+    public void setVersion(int version) {
+		this.version = version;
+	}
+
+	/**
      * 控制帧的类型值标识
      * 
      * @return
