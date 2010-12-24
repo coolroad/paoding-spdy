@@ -7,6 +7,7 @@ import net.paoding.spdy.common.frame.frames.ControlFrame;
 import net.paoding.spdy.common.frame.frames.DataFrame;
 import net.paoding.spdy.common.frame.frames.HeaderStreamFrame;
 import net.paoding.spdy.common.frame.frames.HeaderUtil;
+import net.paoding.spdy.common.frame.util.ControlFrameUtil;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -21,10 +22,10 @@ import org.jboss.netty.handler.codec.oneone.OneToOneEncoder;
  * spdy帧编码器，配置在netty的 {@link ChannelPipeline}
  * 
  * @author qieqie.wang@gmail.com
- * 
+ * @author weibo.leo@gmail.com
  */
 public class FrameEncoder extends OneToOneEncoder {
-
+	
     private static Log logger = LogFactory.getLog(FrameEncoder.class);
 
     private ChannelConfig config;
@@ -55,7 +56,8 @@ public class FrameEncoder extends OneToOneEncoder {
             int limit = buffer.writerIndex();
             // write head
             buffer.writerIndex(0);
-            buffer.writeShort(-1);// control bit&version
+            // control bit&version
+            buffer.writeShort(ControlFrameUtil.encodeVersion(frame.getVersion()));
             buffer.writeShort(frame.getType());
             buffer.writeByte(frame.getFlags());
             buffer.writeMedium(limit - 8); // length

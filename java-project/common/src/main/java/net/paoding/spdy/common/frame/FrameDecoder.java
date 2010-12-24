@@ -25,6 +25,7 @@ import net.paoding.spdy.common.frame.frames.RstStream;
 import net.paoding.spdy.common.frame.frames.SpdyFrame;
 import net.paoding.spdy.common.frame.frames.SynReply;
 import net.paoding.spdy.common.frame.frames.SynStream;
+import net.paoding.spdy.common.frame.util.ControlFrameUtil;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -42,10 +43,10 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
  * 对DataFrame的解码上，尽量不再copy 已有的buffer到dataFrame的data上
  * 
  * @author qieqie.wang@gmail.com
- * 
+ * @author weibo.leo@gmail.com
  */
 public class FrameDecoder extends SimpleChannelUpstreamHandler {
-
+	
     private static Log logger = LogFactory.getLog(FrameDecoder.class);
 
     // messageReceived时用于decode的buffer,messageReceived完毕后buffer归null
@@ -117,9 +118,9 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
         }
         return frame;
     }
-
+    
     private ControlFrame decodeControlFrame(ChannelHandlerContext ctx) throws Exception {
-        int version = -buffer.readShort();
+        int version = ControlFrameUtil.extractVersion(buffer.readShort());
         if (version != 1) {
             throw new IllegalArgumentException("version should be 1");
         }
