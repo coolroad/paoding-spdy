@@ -16,7 +16,12 @@
 package net.paoding.spdy.test.request;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -87,7 +92,54 @@ public class RequestTest {
         Assert.assertEquals(200, response.getStatus().getCode());
         Assert.assertEquals("hello", getContentAsString(response));
     }
+    
+    @Test
+    public void testHellos() {
+    	int n = 1000;
+    	while (n-- > 0) {
+    		//
+            HttpRequest request = new DefaultHttpRequest("get", "/hello");
+            Future<HttpResponse> responseFuture = connector.doRequest(request);
+            responseFuture.awaitUninterruptibly();
+            HttpResponse response = responseFuture.get();
+            //
+            Assert.assertEquals(200, response.getStatus().getCode());
+            Assert.assertEquals("hello", getContentAsString(response));
+    	}
+    }
 
+    
+    @Test
+    public void testHelloMultiThread() throws Exception {
+    	
+    	ExecutorService exe = Executors.newFixedThreadPool(50);
+    	
+    	int n = 1000;
+    	List<java.util.concurrent.Future<HttpResponse>> futures = new ArrayList<java.util.concurrent.Future<HttpResponse>>();
+    	while (n-- > 0) {
+    		java.util.concurrent.Future<HttpResponse> future = exe.submit(new Callable<HttpResponse>() {
+				@Override
+				public HttpResponse call() throws Exception {
+					HttpRequest request = new DefaultHttpRequest("get", "/hello");
+		            Future<HttpResponse> responseFuture = connector.doRequest(request);
+		            responseFuture.await(100);
+		            HttpResponse response = responseFuture.get();
+					return response;
+				}
+			});
+    		futures.add(future);
+            
+    	}
+    	HttpResponse response;
+		for (java.util.concurrent.Future<HttpResponse> f : futures) {
+    		response = f.get();
+    		Assert.assertEquals(200, response.getStatus().getCode());
+            Assert.assertEquals("hello", getContentAsString(response));
+    	}
+        exe.shutdown();
+    }
+    
+    
     @Test
     public void testSubscribe() throws InterruptedException {
         //
