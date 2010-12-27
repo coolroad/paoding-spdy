@@ -32,9 +32,9 @@ import net.paoding.spdy.server.tomcat.impl.subscriptionimpl.SubscriptionFactoryI
 import net.paoding.spdy.server.tomcat.impl.supports.CoyoteAttributes;
 import net.paoding.spdy.server.tomcat.impl.supports.SpdyInputBuffer;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.coyote.Request;
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.http.MimeHeaders;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -45,7 +45,7 @@ import org.jboss.netty.channel.SimpleChannelHandler;
 /**
  * 
  * @author qieqie.wang@gmail.com
- * 
+ * @author weibo.leo@gmail.com
  */
 public class RequestDecoder extends SimpleChannelHandler {
 
