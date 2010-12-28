@@ -237,6 +237,7 @@ public class SpdyProtocol extends SimpleChannelHandler implements ProtocolHandle
                 pipeline.addLast("coyoteRequestExecution", requestExecution);
                 pipeline.addLast("frameEncoder", new FrameEncoder(config));
                 pipeline.addLast("subscriptionEncoder", subscriptionEncoder);
+                // TODO: 要加一个异常处理handler，rst_stream或close connection的
                 return pipeline;
             }
         });

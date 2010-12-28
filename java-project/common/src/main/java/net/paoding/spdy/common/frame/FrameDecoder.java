@@ -17,9 +17,9 @@ package net.paoding.spdy.common.frame;
 
 import java.util.zip.DataFormatException;
 
-import net.paoding.spdy.common.frame.frames.FlaterConfigurable;
 import net.paoding.spdy.common.frame.frames.ControlFrame;
 import net.paoding.spdy.common.frame.frames.DataFrame;
+import net.paoding.spdy.common.frame.frames.FlaterConfigurable;
 import net.paoding.spdy.common.frame.frames.Ping;
 import net.paoding.spdy.common.frame.frames.RstStream;
 import net.paoding.spdy.common.frame.frames.SpdyFrame;
@@ -46,7 +46,7 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
  * @author weibo.leo@gmail.com
  */
 public class FrameDecoder extends SimpleChannelUpstreamHandler {
-	
+
     private static Log logger = LogFactory.getLog(FrameDecoder.class);
 
     // messageReceived时用于decode的buffer,messageReceived完毕后buffer归null
@@ -83,33 +83,47 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
             buffer = input;
         }
         while (true) {
-            if (buffer == null || buffer.readableBytes() < 8) {
-                if (buffer == input) {
-                    if (historyBuffer == null) {
-                        historyBuffer = ChannelBuffers.dynamicBuffer(//
-                                historyMaxCapacity, //
-                                ctx.getChannel().getConfig().getBufferFactory());
-                    } else {
-                        historyBuffer.discardReadBytes();
-                    }
-                    historyBuffer.writeBytes(buffer);
-                }
-                buffer = null;
-                return;
+            // 如果buffer被直接作为frame内部使用，此时buffer将被设置为null
+            if (buffer == null || !buffer.readable()) {
+                break;
             }
-            buffer.markReaderIndex();
+            // 连head都不够，累积到历史buffer中
+            if (buffer.readableBytes() < 8) {
+                saveAsHistory(ctx);
+                break;
+            }
+            //
+            int markReader = buffer.readerIndex();
             SpdyFrame frame = decode(ctx);
             if (frame == null) {
-                buffer.resetReaderIndex();
+                // 无法解出东西，累积到历史buffer中
+                buffer.readerIndex(markReader);
+                saveAsHistory(ctx);
+                break;
             } else {
                 Channels.fireMessageReceived(ctx, frame, e.getRemoteAddress());
             }
         }
     }
 
+    private void saveAsHistory(ChannelHandlerContext ctx) {
+        if (buffer == null || buffer == historyBuffer) {
+            return;
+        }
+        if (historyBuffer == null) {
+            historyBuffer = ChannelBuffers.dynamicBuffer(//
+                    historyMaxCapacity, //
+                    ctx.getChannel().getConfig().getBufferFactory());
+        } else {
+            historyBuffer.discardReadBytes();
+        }
+        historyBuffer.writeBytes(buffer);
+        buffer = null;
+    }
+
     private SpdyFrame decode(ChannelHandlerContext ctx) throws Exception {
         int first = buffer.readByte();
-        buffer.resetReaderIndex();
+        buffer.readerIndex(buffer.readerIndex() - 1);
         SpdyFrame frame;
         if (first < 0) {
             frame = decodeControlFrame(ctx);
@@ -118,7 +132,7 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
         }
         return frame;
     }
-    
+
     private ControlFrame decodeControlFrame(ChannelHandlerContext ctx) throws Exception {
         int version = ControlFrameUtil.extractVersion(buffer.readShort());
         if (version != 1) {
@@ -214,7 +228,6 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
                 return frame;
             }
         }
-
     }
 
     @Override
