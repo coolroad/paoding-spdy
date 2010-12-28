@@ -133,6 +133,7 @@ public class RequestTest {
     	HttpResponse response;
 		for (java.util.concurrent.Future<HttpResponse> f : futures) {
     		response = f.get();
+    		Assert.assertNotNull(response);
     		Assert.assertEquals(200, response.getStatus().getCode());
             Assert.assertEquals("hello", getContentAsString(response));
     	}
@@ -166,13 +167,15 @@ public class RequestTest {
     }
 
     private static String getContentAsString(HttpResponse response) {
-        try {
-            return new String(response.getContent().array(), response.getContent().readerIndex(),
-                    response.getContent().readableBytes(), "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-            return "error";
-        }
+		try {
+			return new String(response.getContent().array(), response
+					.getContent().arrayOffset()
+					+ response.getContent().readerIndex(), response
+					.getContent().readableBytes(), "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+			return "error";
+		}
     }
 
 }
