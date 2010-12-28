@@ -30,8 +30,20 @@ public class MockServer {
 
     private SpdyProtocol acceptor;
 
+    private Executor executor = new Executor() {
+
+        @Override
+        public void execute(Runnable command) {
+            command.run();
+        }
+    };
+
     public MockServer(int port) {
         this.port = port;
+    }
+
+    public void setExecutor(Executor executor) {
+        this.executor = executor;
     }
 
     public void start() {
@@ -42,13 +54,7 @@ public class MockServer {
         SpdyProtocol acceptor = new SpdyProtocol();
         acceptor.setAdapter(new MockAdapter());
         acceptor.setPort(port);
-        acceptor.setExecutor(new Executor() {
-
-            @Override
-            public void execute(Runnable command) {
-                command.run();
-            }
-        });
+        acceptor.setExecutor(executor);
         acceptor.init();
         acceptor.start();
 
