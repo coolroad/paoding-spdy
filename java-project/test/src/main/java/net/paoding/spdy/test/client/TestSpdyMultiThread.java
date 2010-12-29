@@ -4,6 +4,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import net.paoding.spdy.client.Bootstrap;
 import net.paoding.spdy.client.Connector;
@@ -28,6 +29,12 @@ public class TestSpdyMultiThread {
 	
 	private AtomicInteger fail = new AtomicInteger();
 	
+	private AtomicLong totalTime = new AtomicLong();
+	
+	private volatile int minTime = 1000;
+	
+	private volatile int maxTime = 0;
+	
 	private ScheduledExecutorService threadPool = Executors.newScheduledThreadPool(250);
 	
 	private long startTime;
@@ -50,8 +57,11 @@ public class TestSpdyMultiThread {
 			int s = sent.get();
 			int r = succ.get();
 			int f = fail.get();
+			long t = totalTime.get();
 			System.out.println(duration + "s (sent:" + s + ", " + 1.0 * s / duration
-					+ "/s), (received:" + r + ", " + 1.0 * r / duration + "/s), (fail:" + f + ")");
+					+ "/s), (received:" + r + ", " + 1.0 * r / duration + "/s), (avgTime:" + t / r + "ms, " +
+					"maxTime:" + maxTime + "ms, minTime:" + minTime + "), " +	
+					"(fail:" + f + ")");
 		}
 	};
 	
@@ -73,17 +83,31 @@ public class TestSpdyMultiThread {
 		public void run() {
 			while (true) {
 				try {
+					
+					long startTime = System.currentTimeMillis();
 					HttpRequest request = new DefaultHttpRequest(HttpMethod.GET, path);
 					request.setHeader("Host", "blog.xoa.renren.com");
+					request.setHeader("Accept-Encoding", "gzip,deflate");
 		            Future<HttpResponse> responseFuture = connector.doRequest(request);
 		            sent.incrementAndGet();
-		            responseFuture.await(1000);
+		            responseFuture.await(5000);
 		            HttpResponse response = responseFuture.get();
 		            if (response != null && response.getStatus().getCode() == 200) {
 		            	succ.incrementAndGet();
 		            } else {
 		            	fail.incrementAndGet();
 		            }
+		            
+		            long endTime = System.currentTimeMillis();
+					int time = (int) (endTime - startTime);
+					if (time > maxTime) {
+						maxTime = time;
+					}
+					if (time < minTime) {
+						minTime = time;
+					}
+					totalTime.addAndGet(time);
+		            
 				} catch (Exception e) {
 					e.printStackTrace();
 					fail.incrementAndGet();
