@@ -92,26 +92,9 @@ public class RequestTest {
         Assert.assertEquals(200, response.getStatus().getCode());
         Assert.assertEquals("hello", getContentAsString(response));
     }
-    
-    @Test
-    public void testHellos() {
-    	int n = 1000;
-    	while (n-- > 0) {
-    		//
-            HttpRequest request = new DefaultHttpRequest("get", "/hello");
-            Future<HttpResponse> responseFuture = connector.doRequest(request);
-            responseFuture.awaitUninterruptibly();
-            HttpResponse response = responseFuture.get();
-            //
-            Assert.assertEquals(200, response.getStatus().getCode());
-            Assert.assertEquals("hello", getContentAsString(response));
-    	}
-    }
 
-    
     @Test
     public void testHelloMultiThread() throws Exception {
-    	
     	ExecutorService exe = Executors.newFixedThreadPool(100);
     	
     	int n = 10000;
@@ -133,14 +116,15 @@ public class RequestTest {
     	HttpResponse response;
 		for (java.util.concurrent.Future<HttpResponse> f : futures) {
     		response = f.get();
-    		Assert.assertNotNull(response);
+    		// 如果response为null，可以适当增大上面responseFuture.await(n)中n的值
+            Assert.assertNotNull(response);
     		Assert.assertEquals(200, response.getStatus().getCode());
             Assert.assertEquals("hello", getContentAsString(response));
-    	}
+        }
         exe.shutdown();
+        Thread.sleep(10);
     }
-    
-    
+
     @Test
     public void testSubscribe() throws InterruptedException {
         //
@@ -167,15 +151,14 @@ public class RequestTest {
     }
 
     private static String getContentAsString(HttpResponse response) {
-		try {
-			return new String(response.getContent().array(), response
-					.getContent().arrayOffset()
-					+ response.getContent().readerIndex(), response
-					.getContent().readableBytes(), "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-			return "error";
-		}
+        try {
+            return new String(response.getContent().array(), response.getContent().arrayOffset()
+                    + response.getContent().readerIndex(), response.getContent().readableBytes(),
+                    "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+            return "error";
+        }
     }
 
 }
