@@ -112,9 +112,9 @@ public class RequestTest {
     @Test
     public void testHelloMultiThread() throws Exception {
     	
-    	ExecutorService exe = Executors.newFixedThreadPool(50);
+    	ExecutorService exe = Executors.newFixedThreadPool(100);
     	
-    	int n = 1000;
+    	int n = 10000;
     	List<java.util.concurrent.Future<HttpResponse>> futures = new ArrayList<java.util.concurrent.Future<HttpResponse>>();
     	while (n-- > 0) {
     		java.util.concurrent.Future<HttpResponse> future = exe.submit(new Callable<HttpResponse>() {
@@ -122,7 +122,7 @@ public class RequestTest {
 				public HttpResponse call() throws Exception {
 					HttpRequest request = new DefaultHttpRequest("get", "/hello");
 		            Future<HttpResponse> responseFuture = connector.doRequest(request);
-		            responseFuture.await(100);
+		            responseFuture.await(1000);
 		            HttpResponse response = responseFuture.get();
 					return response;
 				}
