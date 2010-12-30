@@ -88,7 +88,7 @@ public class SynStream extends ControlFrame implements HeaderStreamFrame, Flater
         buffer.writeInt(streamId);
         buffer.writeInt(associatedId);
         buffer.writeShort(0);
-        HeaderUtil.encode(headers, buffer, true);
+        HeaderUtil.encode(headers, buffer, usingDecompressing);
     }
 
     @Override
