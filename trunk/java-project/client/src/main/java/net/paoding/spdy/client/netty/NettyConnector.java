@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.paoding.spdy.client.Connector;
 import net.paoding.spdy.client.Future;
@@ -68,7 +69,7 @@ public class NettyConnector implements Connector, PingListener {
     // 状态信息
 
     /** 该连接下一个使用的spdy stream编号 */
-    private int nextStreamId = 1;
+    private AtomicInteger nextStreamId = new AtomicInteger(1);
 
     // 其它
 
@@ -275,14 +276,17 @@ public class NettyConnector implements Connector, PingListener {
 
     //----------------------------------------------
 
-    //-------------------
-
-    protected synchronized int getNextStreamId() {
-        nextStreamId += 2;
-        if (nextStreamId < 0) {
-            nextStreamId = 1;
+    protected int getNextStreamId() {
+        int id = nextStreamId.getAndAdd(2);
+        if (id < 0) {
+            synchronized (this) {
+                if (nextStreamId.intValue() < 0) {
+                    nextStreamId = new AtomicInteger(1);
+                }
+            }
+            id = nextStreamId.getAndAdd(2);
         }
-        return nextStreamId;
+        return id;
     }
 
     private static final class CloseFuture extends ChannelFutureAdapter<Connector> {
