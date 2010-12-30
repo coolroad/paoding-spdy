@@ -15,7 +15,7 @@
  */
 package net.paoding.spdy.test.request;
 
-import java.io.UnsupportedEncodingException;
+import static net.paoding.spdy.test.util.TestUtil.getContentAsString;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -148,17 +148,6 @@ public class RequestTest {
         Assert.assertNotNull(onepushed);
         Assert.assertEquals(200, onepushed.getStatus().getCode());
         Assert.assertEquals("pushed", getContentAsString(onepushed));
-    }
-
-    private static String getContentAsString(HttpResponse response) {
-        try {
-            return new String(response.getContent().array(), response.getContent().arrayOffset()
-                    + response.getContent().readerIndex(), response.getContent().readableBytes(),
-                    "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-            return "error";
-        }
     }
 
 }
