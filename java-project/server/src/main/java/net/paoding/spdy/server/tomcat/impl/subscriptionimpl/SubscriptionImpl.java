@@ -18,6 +18,7 @@ package net.paoding.spdy.server.tomcat.impl.subscriptionimpl;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.paoding.spdy.common.frame.frames.SynStream;
 import net.paoding.spdy.common.supports.Listeners;
@@ -39,14 +40,19 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 // TODO: 订阅的取消还得阅读spdy协议，按照协议的规范实现Server Implementation＆Client Implementation
 public class SubscriptionImpl implements Subscription {
 
-    private static int nextStreamId = 2;
+    private static AtomicInteger nextStreamId = new AtomicInteger(2);
 
-    static synchronized int nextStreamId() {
-        nextStreamId += 2;
-        if (nextStreamId < 0) {
-            nextStreamId = 2;
+    static int nextStreamId() {
+        int id = nextStreamId.getAndAdd(2);
+        if (id < 0) {
+            synchronized (SubscriptionImpl.class) {
+                if (nextStreamId.intValue() < 0) {
+                    nextStreamId = new AtomicInteger(2);
+                }
+            }
+            id = nextStreamId.getAndAdd(2);
         }
-        return nextStreamId;
+        return id;
     }
 
     //---------------------------------

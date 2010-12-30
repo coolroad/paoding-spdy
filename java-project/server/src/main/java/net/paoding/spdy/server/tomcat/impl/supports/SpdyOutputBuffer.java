@@ -43,16 +43,14 @@ public class SpdyOutputBuffer implements OutputBuffer {
     // 内容字节数
     private int all;
 
-    // 缓存
-    private ChannelBuffer buffer;
+    // 小于这个数字的data将被delay直到满足才发送
+    private final int delaySize;
 
-    private final int bufferSize;
+    // 延迟发送的data
+    private ChannelBuffer delay;
 
-    private final ChannelBufferFactory channelBufferFactory;
-
-    public SpdyOutputBuffer(ChannelBufferFactory channelBufferFactory, int bufferSize) {
-        this.bufferSize = bufferSize;
-        this.channelBufferFactory = channelBufferFactory;
+    public SpdyOutputBuffer(ChannelBufferFactory channelBufferFactory, int delaySize) {
+        this.delaySize = delaySize;
     }
 
     @Override
@@ -61,25 +59,13 @@ public class SpdyOutputBuffer implements OutputBuffer {
         if (chunkLength <= 0) {
             return 0;
         }
-        final boolean debugEnabled = logger.isDebugEnabled();
-        if (this.buffer != null) {
-            if (this.buffer.writableBytes() < chunkLength) {
-                if (debugEnabled) {
-                    logger.debug("flushing before write");
-                }
-                flush(response);
-            }
-        } else {
-            newBuffer(chunkLength);
+        ChannelBuffer old = this.delay;
+        delay = ChannelBuffers.wrappedBuffer(chunk.getBuffer(), chunk.getStart(), chunkLength);
+        if (old != null) {
+            delay = ChannelBuffers.wrappedBuffer(old, delay);
         }
-        //
-        this.buffer.writeBytes(chunk.getBuffer(), chunk.getStart(), chunkLength);
         all += chunkLength;
-        if (debugEnabled) {
-            logger.debug("append to buffer: chunk=" + chunkLength + ", buffer="
-                    + this.buffer.readableBytes() + "; all=" + all);
-        }
-        if (!buffer.writable()) {
+        if (delay.readableBytes() >= delaySize) {
             flush(response);
         }
         return chunkLength;
@@ -90,9 +76,9 @@ public class SpdyOutputBuffer implements OutputBuffer {
     }
 
     private void flush(Response response, boolean last) {
-        if (buffer != null) {
-            ChannelBuffer buffer = this.buffer;
-            this.buffer = null;
+        if (delay != null) {
+            ChannelBuffer buffer = this.delay;
+            this.delay = null;
             DataFrame frame = createDataFrame(response, buffer);
             final boolean debugEnabled = logger.isDebugEnabled();
             if (last) {
@@ -127,15 +113,7 @@ public class SpdyOutputBuffer implements OutputBuffer {
     }
 
     public void reset() {
-        this.buffer = null;
-    }
-
-    private final void newBuffer(int minLimit) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("creating a new buffer");
-        }
-        buffer = ChannelBuffers.buffer(//
-                channelBufferFactory.getDefaultOrder(), Math.max(minLimit, bufferSize));
+        this.delay = null;
     }
 
     private DataFrame createDataFrame(Response response, ChannelBuffer data) {
