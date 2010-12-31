@@ -1,6 +1,7 @@
 package net.paoding.spdy.common.frame.frames;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBufferFactory;
 
 /**
  * PING控制帧
@@ -87,8 +88,10 @@ public class Ping extends ControlFrame {
     }
 
     @Override
-    public void encodeData(ChannelBuffer buffer) {
+    public ChannelBuffer encodeData(ChannelBufferFactory factory) {
+        ChannelBuffer buffer = factory.getBuffer(4);
         buffer.writeInt(id);
+        return buffer;
     }
 
     @Override

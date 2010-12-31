@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.zip.DataFormatException;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBufferFactory;
 
 /**
  * SYN_STREAM
@@ -84,11 +85,15 @@ public class SynStream extends ControlFrame implements HeaderStreamFrame, Flater
     }
 
     @Override
-    public void encodeData(ChannelBuffer buffer) {
+    public ChannelBuffer encodeData(ChannelBufferFactory factory) {
+        ChannelBuffer buffer = HeaderUtil.encode(10, headers, usingDecompressing, factory);
+        int writerIndex = buffer.writerIndex();
+        buffer.writerIndex(0);
         buffer.writeInt(streamId);
         buffer.writeInt(associatedId);
         buffer.writeShort(0);
-        HeaderUtil.encode(headers, buffer, usingDecompressing);
+        buffer.writerIndex(writerIndex);
+        return buffer;
     }
 
     @Override
