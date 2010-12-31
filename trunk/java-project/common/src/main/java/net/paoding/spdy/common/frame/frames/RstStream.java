@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Map;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBufferFactory;
 
 /**
  * RST_STREAM
@@ -102,9 +103,11 @@ public class RstStream extends ControlFrame implements HeaderStreamFrame {
     }
 
     @Override
-    public void encodeData(ChannelBuffer buffer) {
+    public ChannelBuffer encodeData(ChannelBufferFactory factory) {
+        ChannelBuffer buffer = factory.getBuffer(8);
         buffer.writeInt(streamId);
         buffer.writeInt(statusCode);
+        return buffer;
     }
 
     @Override

@@ -10,6 +10,7 @@ import java.util.zip.Inflater;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBufferFactory;
 import org.jboss.netty.buffer.ChannelBuffers;
 
 /**
@@ -131,8 +132,12 @@ public class HeaderUtil {
      * @param headers
      * @param buffer
      */
-    public static void encode(Map<String, String> headers, ChannelBuffer buffer,
-            boolean usingCompressing) {
+    public static ChannelBuffer encode(int bufferOffset, Map<String, String> headers,
+            boolean usingCompressing, ChannelBufferFactory factory) {
+        int estimatedLength = 64 + bufferOffset + HeaderUtil.estimatedLength(headers);
+        ChannelBuffer buffer = ChannelBuffers.dynamicBuffer(//
+                estimatedLength, factory);
+        buffer.writerIndex(bufferOffset);
         buffer.writeShort(headers.size());
         boolean debugEnabled = logger.isDebugEnabled();
         if (debugEnabled) {
@@ -142,7 +147,7 @@ public class HeaderUtil {
         //
         int index = 0;
         for (Map.Entry<String, String> entry : headers.entrySet()) {
-            String keyString = entry.getKey().trim();
+            String keyString = entry.getKey();
             byte[] key = keyString.getBytes(utf8);
             byte[] value = entry.getValue().getBytes(utf8);
             buffer.writeShort(key.length);
@@ -181,8 +186,12 @@ public class HeaderUtil {
             }
             deflater.end();
             buffer.writerIndex(offset);
-            buffer.writeBytes(tbuffer);
+            buffer = ChannelBuffers.wrappedBuffer(buffer, tbuffer);
         }
+        if (logger.isDebugEnabled()) {
+            logger.debug("estimatedLength=" + estimatedLength + " actual=" + buffer.readableBytes());
+        }
+        return buffer;
     }
 
     public static int estimatedLength(Map<String, String> headers) {

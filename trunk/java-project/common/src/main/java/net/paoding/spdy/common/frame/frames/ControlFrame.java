@@ -1,6 +1,7 @@
 package net.paoding.spdy.common.frame.frames;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBufferFactory;
 import org.jboss.netty.channel.Channel;
 
 /**
@@ -13,15 +14,15 @@ public abstract class ControlFrame implements SpdyFrame {
 
     //----------------------------------------------------------------
 
-	/**
-	 * 协议版本号, 默认为1
-	 */
-	private int version = 1;
-	
+    /**
+     * 协议版本号, 默认为1
+     */
+    private int version = 1;
+
     protected int flags;
 
     protected Channel channel;
-    
+
     private long timestamp;
 
     private final int type;
@@ -35,14 +36,14 @@ public abstract class ControlFrame implements SpdyFrame {
      * @return 协议版本号
      */
     public int getVersion() {
-		return version;
-	}
+        return version;
+    }
 
     public void setVersion(int version) {
-		this.version = version;
-	}
+        this.version = version;
+    }
 
-	/**
+    /**
      * 控制帧的类型值标识
      * 
      * @return
@@ -64,7 +65,7 @@ public abstract class ControlFrame implements SpdyFrame {
      * 
      * @param buffer
      */
-    public abstract void encodeData(ChannelBuffer buffer);
+    public abstract ChannelBuffer encodeData(ChannelBufferFactory factory);
 
     @Override
     public int getFlags() {

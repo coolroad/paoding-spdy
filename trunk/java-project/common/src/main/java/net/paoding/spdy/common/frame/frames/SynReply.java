@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.zip.DataFormatException;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBufferFactory;
 
 /**
  * SYN_REPLY控制帧
@@ -82,17 +83,23 @@ public class SynReply extends ControlFrame implements HeaderStreamFrame, FlaterC
     }
 
     @Override
-    public void encodeData(ChannelBuffer buffer) {
+    public ChannelBuffer encodeData(ChannelBufferFactory factory) {
+        ChannelBuffer buffer = HeaderUtil.encode(6, headers, usingDecompressing, factory);
+        int writerIndex = buffer.writerIndex();
+        buffer.writerIndex(0);
         buffer.writeInt(streamId);
         buffer.writeShort(0);
-        HeaderUtil.encode(headers, buffer, usingDecompressing);
+        buffer.writerIndex(writerIndex);
+        return buffer;
     }
 
     @Override
     public String toString() {
-        return String.format("SynRely[streamId=%s, flags=%s, headers.size=%s, timestamp=%s, deflate=%s]",
+        return String.format(
+                "SynRely[streamId=%s, flags=%s, headers.size=%s, timestamp=%s, deflate=%s]",
                 streamId, flags, headers.size(),
-                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(getTimestamp()), usingDecompressing);
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(getTimestamp()),
+                usingDecompressing);
     }
 
 }
