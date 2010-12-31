@@ -78,8 +78,7 @@ public class HeaderUtil {
             }
             inflater = new Inflater();
             inflater.setInput(array, arrayOffset, arrayLength);
-            DynamicChannelBuffer tbuffer = (DynamicChannelBuffer) ChannelBuffers
-                    .dynamicBuffer(length < 128 ? 128 : length);
+            ChannelBuffer tbuffer = ChannelBuffers.dynamicBuffer(length < 128 ? 128 : length);
             int inflated = inflater.inflate(tbuffer.array());
             if (inflated == 0 && inflater.needsDictionary()) {
                 inflater.setDictionary(dictionary);
