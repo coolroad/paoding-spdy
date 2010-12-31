@@ -12,7 +12,6 @@ import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferFactory;
 import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.buffer.DynamicChannelBuffer;
 
 /**
  * Header编解码
@@ -42,8 +41,6 @@ public class HeaderUtil {
             + "ation/xhtmltext/plainpublicmax-agecharset=iso-8859-1utf-8gzipdeflateHTTP/1"
             + ".1statusversionurl"//
     ).getBytes();
-
-    private static final byte[] bytes32 = new byte[32];
 
     /**
      * 解码
@@ -174,7 +171,7 @@ public class HeaderUtil {
             tbuffer.writerIndex(deflated);
             while (tbuffer.writerIndex() == tbuffer.array().length) {
                 final int writerIndex = tbuffer.writerIndex();
-                tbuffer.writeBytes(bytes32);
+                tbuffer.ensureWritableBytes(32);
                 deflated = deflater.deflate(//
                         tbuffer.array(), writerIndex, tbuffer.array().length - writerIndex);
                 //
