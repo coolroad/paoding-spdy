@@ -56,8 +56,6 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
     // 新的messageReceived的读入input将合并到historyBuffer中，以供decode
     private ChannelBuffer historyBuffer;
 
-    private int historyMaxCapacity = 512;
-
     private ChannelConfig config;
 
     public FrameDecoder(ChannelConfig config) {
@@ -77,7 +75,7 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
             return;
         }
         if (historyBuffer != null && historyBuffer.readable()) {
-            historyBuffer.writeBytes(input);
+            historyBuffer = ChannelBuffers.wrappedBuffer(historyBuffer, input);
             buffer = historyBuffer;
         } else {
             buffer = input;
@@ -110,14 +108,7 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
         if (buffer == null || buffer == historyBuffer) {
             return;
         }
-        if (historyBuffer == null) {
-            historyBuffer = ChannelBuffers.dynamicBuffer(//
-                    historyMaxCapacity, //
-                    ctx.getChannel().getConfig().getBufferFactory());
-        } else {
-            historyBuffer.discardReadBytes();
-        }
-        historyBuffer.writeBytes(buffer);
+        historyBuffer = buffer;
         buffer = null;
     }
 
@@ -192,7 +183,6 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
             // 如果historyBuffer刚好只包含一个这个frame的数据，那就直接用，不copy！
             if (_historyBuffer.readableBytes() == length) {
                 frame.setData(_buffer);
-                historyMaxCapacity = _historyBuffer.capacity();
                 historyBuffer = null;
                 buffer = null;
                 if (logger.isDebugEnabled()) {
