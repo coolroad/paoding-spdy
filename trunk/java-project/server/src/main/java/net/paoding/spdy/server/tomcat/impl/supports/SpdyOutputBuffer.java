@@ -23,6 +23,7 @@ import net.paoding.spdy.common.frame.frames.SynStream;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.coyote.ActionCode;
 import org.apache.coyote.OutputBuffer;
 import org.apache.coyote.Response;
 import org.apache.tomcat.util.buf.ByteChunk;
@@ -92,6 +93,9 @@ public class SpdyOutputBuffer implements OutputBuffer {
             }
             if (debugEnabled) {
                 logger.debug("flush buffer: " + frame);
+            }
+            if (!response.isCommitted()) {
+                response.action(ActionCode.ACTION_COMMIT, null);
             }
             Channels.write(frame.getChannel(), frame);
         }
