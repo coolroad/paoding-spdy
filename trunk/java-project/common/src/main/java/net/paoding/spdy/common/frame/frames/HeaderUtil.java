@@ -12,6 +12,7 @@ import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferFactory;
 import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.buffer.DynamicChannelBuffer;
 
 /**
  * Header编解码
@@ -77,7 +78,8 @@ public class HeaderUtil {
             }
             inflater = new Inflater();
             inflater.setInput(array, arrayOffset, arrayLength);
-            ChannelBuffer tbuffer = ChannelBuffers.dynamicBuffer(length < 128 ? 128 : length);
+            DynamicChannelBuffer tbuffer = (DynamicChannelBuffer) ChannelBuffers
+                    .dynamicBuffer(length < 128 ? 128 : length);
             int inflated = inflater.inflate(tbuffer.array());
             if (inflated == 0 && inflater.needsDictionary()) {
                 inflater.setDictionary(dictionary);
@@ -87,7 +89,7 @@ public class HeaderUtil {
             while (tbuffer.writerIndex() == tbuffer.array().length) {
                 // expand the array
                 final int writerIndex = tbuffer.writerIndex();
-                tbuffer.writeBytes(bytes32);
+                tbuffer.ensureWritableBytes(32);
                 inflated = inflater.inflate(tbuffer.array(), writerIndex, tbuffer.array().length
                         - writerIndex);
                 //
