@@ -103,7 +103,13 @@ public class SpdyInputBuffer implements InputBuffer {
         if (readableBytes == 0) {
             return 0;
         }
-        chunk.setBytes(data.array(), data.readerIndex(), readableBytes);
+        if (data.hasArray()) {
+            chunk.setBytes(data.array(), data.arrayOffset() + data.readerIndex(), readableBytes);
+        } else {
+            byte[] dst = new byte[readableBytes];
+            data.readBytes(dst);
+            chunk.setBytes(dst, 0, dst.length);
+        }
         return readableBytes;
     }
 

@@ -58,13 +58,24 @@ public class HeaderUtil {
             logger.debug("decoding: headers.size=" + size);
         }
         Inflater inflater = null;
+        byte[] array;
+        int arrayOffset;
+        int arrayLength = length - 2;
+        if (buffer.hasArray()) {
+            array = buffer.array();
+            arrayOffset = buffer.arrayOffset() + buffer.readerIndex();
+            buffer.skipBytes(arrayLength);
+        } else {
+            array = new byte[arrayLength];
+            buffer.readBytes(array, 0, arrayLength);
+            arrayOffset = 0;
+        }
         if (usingDecompressing) {
             if (debugEnabled) {
                 logger.debug("decoding: using decompressing");
             }
             inflater = new Inflater();
-            inflater.setInput(buffer.array(), buffer.readerIndex(), length - 2);
-            buffer.skipBytes(length - 2);
+            inflater.setInput(array, arrayOffset, arrayLength);
             ChannelBuffer tbuffer = ChannelBuffers.dynamicBuffer(length < 128 ? 128 : length);
             int inflated = inflater.inflate(tbuffer.array());
             if (inflated == 0 && inflater.needsDictionary()) {
@@ -88,15 +99,22 @@ public class HeaderUtil {
             }
             inflater.end();
             buffer = tbuffer;
+        } else {
+            if (!buffer.hasArray()) {
+                buffer = ChannelBuffers.wrappedBuffer(array, arrayOffset, arrayLength);
+            } else {
+                buffer.readerIndex(buffer.readerIndex() - arrayLength);
+            }
         }
         Map<String, String> pairs = new HashMap<String, String>(size);
         for (int i = 0; i < size; i++) {
             int nameLength = buffer.readUnsignedShort();
-            String name = new String(buffer.array(), buffer.readerIndex(), nameLength, utf8)
-                    .toLowerCase();
+            String name = new String(buffer.array(), buffer.arrayOffset() + buffer.readerIndex(),
+                    nameLength, utf8).toLowerCase();
             buffer.skipBytes(nameLength);
             int valueLength = buffer.readUnsignedShort();
-            String value = new String(buffer.array(), buffer.readerIndex(), valueLength, utf8);
+            String value = new String(buffer.array(), buffer.arrayOffset() + buffer.readerIndex(),
+                    valueLength, utf8);
             buffer.skipBytes(valueLength);
             pairs.put(name, value);
             if (debugEnabled) {
