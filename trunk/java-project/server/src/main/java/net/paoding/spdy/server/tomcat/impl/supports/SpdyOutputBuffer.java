@@ -78,6 +78,9 @@ public class SpdyOutputBuffer implements OutputBuffer {
 
     private void flush(Response response, boolean last) {
         if (delay != null) {
+            if (!response.isCommitted()) {
+                response.action(ActionCode.ACTION_COMMIT, null);
+            }
             ChannelBuffer buffer = this.delay;
             this.delay = null;
             DataFrame frame = createDataFrame(response, buffer);
@@ -93,9 +96,6 @@ public class SpdyOutputBuffer implements OutputBuffer {
             }
             if (debugEnabled) {
                 logger.debug("flush buffer: " + frame);
-            }
-            if (!response.isCommitted()) {
-                response.action(ActionCode.ACTION_COMMIT, null);
             }
             Channels.write(frame.getChannel(), frame);
         }

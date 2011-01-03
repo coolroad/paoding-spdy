@@ -45,11 +45,12 @@ public class FrameEncoder extends OneToOneEncoder {
             head.writeShort(ControlFrameUtil.encodeVersion(frame.getVersion()));
             head.writeShort(frame.getType());
             head.writeByte(frame.getFlags());
-            head.writeMedium(data.writerIndex()); // length
+            int readableBytes = data.readableBytes();
+            head.writeMedium(readableBytes); // length
             if (logger.isDebugEnabled()) {
                 logger.debug("writing " + frame);
             }
-            if (data.readable()) {
+            if (readableBytes > 0) {
                 return ChannelBuffers.wrappedBuffer(head, data);
             } else {
                 return head;
