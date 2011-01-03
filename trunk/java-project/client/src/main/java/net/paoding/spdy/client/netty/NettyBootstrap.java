@@ -35,6 +35,7 @@ import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
+import org.jboss.netty.handler.logging.LoggingHandler;
 import org.jboss.netty.util.internal.IoWorkerRunnable;
 
 /**
@@ -117,6 +118,7 @@ public class NettyBootstrap implements Bootstrap {
                 ChannelConfig config = new ChannelConfig();
 
                 ChannelPipeline pipeline = Channels.pipeline();
+                pipeline.addLast("logger", new LoggingHandler());
                 pipeline.addLast("frameDecoder", new FrameDecoder(config));
                 pipeline.addLast("pingExecution", new PingExecution(connecting));
                 pipeline.addLast("responseExecution", new ResponseExecution(connecting));
