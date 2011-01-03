@@ -94,7 +94,7 @@ public class ResponseExecution implements ChannelUpstreamHandler {
                     ChannelBuffer content = response.getContent();
                     ChannelBuffer chunk = ((DataFrame) frame).getData();
                     if (chunk.readable()) {
-                        if (content.array().length == 0) {
+                        if (content.hasArray() && content.array().length == 0) {
                             response.setContent(chunk);
                         } else {
                             content = ChannelBuffers.wrappedBuffer(content, chunk);
