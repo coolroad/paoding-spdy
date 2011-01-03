@@ -56,12 +56,9 @@ public class RequestExecution extends SimpleChannelHandler {
 
     private Executor requstExecutor;
 
-    private int ouputBufferSize;
-
-    public RequestExecution(Executor executor, Adapter adapter, int ouputBufferSize) {
+    public RequestExecution(Executor executor, Adapter adapter) {
         this.requstExecutor = executor;
         this.coyoteAdapter = adapter;
-        this.ouputBufferSize = ouputBufferSize;
     }
 
     @Override
@@ -92,7 +89,7 @@ public class RequestExecution extends SimpleChannelHandler {
         request.setResponse(response);
         response.setRequest(request);
         response.setHook(new HookDelegate(request, response));
-        response.setOutputBuffer(new SpdyOutputBuffer(factory, ouputBufferSize));
+        response.setOutputBuffer(new SpdyOutputBuffer());
         return response;
     }
 
