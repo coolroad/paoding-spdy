@@ -41,6 +41,10 @@ public class Commit implements Action {
 
     @Override
     public void action(Request request, Response response, Object param) {
+        if (response.isCommitted()) {
+            logger.debug("ignores commiting of response");
+            return;
+        }
         commit(request, response);
     }
 
