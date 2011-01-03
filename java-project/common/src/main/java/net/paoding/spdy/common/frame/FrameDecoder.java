@@ -49,6 +49,8 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
 
     private static Log logger = LogFactory.getLog(FrameDecoder.class);
 
+    private final boolean debugEnabled;
+
     // messageReceived时用于decode的buffer,messageReceived完毕后buffer归null
     private ChannelBuffer buffer;
 
@@ -60,6 +62,7 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
 
     public FrameDecoder(ChannelConfig config) {
         this.config = config;
+        this.debugEnabled = logger.isDebugEnabled();
     }
 
     @Override
@@ -74,9 +77,16 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
         if (!input.readable()) {
             return;
         }
+        if (debugEnabled) {
+            logger.debug("received: " + input);
+        }
         if (historyBuffer != null && historyBuffer.readable()) {
             historyBuffer = ChannelBuffers.wrappedBuffer(historyBuffer, input);
             buffer = historyBuffer;
+            if (debugEnabled) {
+                logger.debug("wrappedBuffer: " + historyBuffer);
+            }
+
         } else {
             buffer = input;
         }
@@ -159,7 +169,7 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
             throw new IllegalStateException("expected read " + length + " bytes, actuall "
                     + (length - buffer.readableBytes() + expectedExceed));
         }
-        if (logger.isDebugEnabled()) {
+        if (debugEnabled) {
             logger.debug("ControlFrame: " + frame);
         }
         return frame;
@@ -185,7 +195,7 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
                 frame.setData(_buffer);
                 historyBuffer = null;
                 buffer = null;
-                if (logger.isDebugEnabled()) {
+                if (debugEnabled) {
                     logger.debug("DataFrame(by cumulation.direct): " + frame);
                 }
                 return frame;
@@ -194,7 +204,7 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
             else {
                 frame.setData(_buffer.copy(_buffer.readerIndex(), length));
                 _buffer.skipBytes(length);
-                if (logger.isDebugEnabled()) {
+                if (debugEnabled) {
                     logger.debug("DataFrame(by cumulation.copy): " + frame);
                 }
                 return frame;
@@ -205,14 +215,14 @@ public class FrameDecoder extends SimpleChannelUpstreamHandler {
             if (_buffer.readableBytes() == length) {
                 frame.setData(_buffer);
                 buffer = null;
-                if (logger.isDebugEnabled()) {
+                if (debugEnabled) {
                     logger.debug("DataFrame(by input.direct): " + frame);
                 }
                 return frame;
             } else {
                 frame.setData(_buffer.slice(_buffer.readerIndex(), length));
                 _buffer.skipBytes(length);
-                if (logger.isDebugEnabled()) {
+                if (debugEnabled) {
                     logger.debug("DataFrame(by input.slice): " + frame);
                 }
                 return frame;
