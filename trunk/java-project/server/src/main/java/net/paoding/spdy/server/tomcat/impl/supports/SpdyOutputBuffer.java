@@ -17,12 +17,15 @@ package net.paoding.spdy.server.tomcat.impl.supports;
 
 import java.io.IOException;
 
+import javax.servlet.http.HttpServletResponse;
+
 import net.paoding.spdy.common.frame.frames.DataFrame;
 import net.paoding.spdy.common.frame.frames.SpdyFrame;
 import net.paoding.spdy.common.frame.frames.SynStream;
 import net.paoding.spdy.server.tomcat.impl.hook.ClientFlush;
 import net.paoding.spdy.server.tomcat.impl.hook.Close;
 
+import org.apache.catalina.connector.CoyoteAdapter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.coyote.ActionCode;
@@ -31,6 +34,7 @@ import org.apache.coyote.Response;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.Channels;
 
 /**
@@ -42,36 +46,46 @@ public class SpdyOutputBuffer implements OutputBuffer {
 
     private static Log logger = LogFactory.getLog(SpdyOutputBuffer.class);
 
-    // 延迟发送的data
     private ChannelBuffer delay;
+
+    private boolean fin = false;
+
+    private final boolean debugEnabled = logger.isDebugEnabled();
 
     public SpdyOutputBuffer() {
     }
 
-    private int maxSize = Integer.MAX_VALUE - 8; // dataFrame.head.size=8
-
-    private int minSize = maxSize;
-
     @Override
-    public int doWrite(ByteChunk chunk, Response response) throws IOException {
+    public int doWrite(ByteChunk chunk, Response coyoteResponse) throws IOException {
         int chunkLength = chunk.getLength();
         if (chunkLength <= 0) {
             return 0;
         }
-        ChannelBuffer old = this.delay;
-        int offset = chunk.getStart();
-        while (chunkLength > 0) {
-            int part = Math.min(chunkLength, old == null ? maxSize : maxSize - old.readableBytes());
-            delay = ChannelBuffers.wrappedBuffer(chunk.getBuffer(), offset, part);
-            if (old != null) {
-                delay = ChannelBuffers.wrappedBuffer(old, delay);
-                old = null;
+        // @see org.apache.catalina.connector.CoyoteAdapter#service
+        HttpServletResponse response = (HttpServletResponse) coyoteResponse
+                .getNote(CoyoteAdapter.ADAPTER_NOTES);
+        // 满了代表chunk.getBuffer()这个byte数组可能还会被下一个write用
+        if (response != null && chunk.getStart() + chunkLength == response.getBufferSize()) {
+            byte[] copied = new byte[chunkLength];
+            System.arraycopy(chunk.getBuffer(), chunk.getStart(), copied, 0, chunkLength);
+            delay = ChannelBuffers.wrappedBuffer(copied);
+            if (debugEnabled) {
+                logger.debug("writing copied buffer: offset=" + chunk.getStart() + " len="
+                        + chunkLength + "  outputBufferSize=" + response.getBufferSize());
             }
-            if (delay.readableBytes() >= minSize) {
-                flush(response);
+            flush(coyoteResponse);
+        }
+        // 没满就来代表以后不再write了，这是最后一个，可以直接用chunk.buffer这个byte数组了
+        else {
+            if (fin) {
+                throw new Error("spdy buffer error: buffer closed");
             }
-            chunkLength -= part;
-            offset += part;
+            if (debugEnabled) {
+                logger.debug("writing writing buffer: offset=" + chunk.getStart() + " len="
+                        + chunkLength);
+            }
+            delay = ChannelBuffers.wrappedBuffer(chunk.getBuffer(), chunk.getStart(), chunkLength);
+            flushAndClose(coyoteResponse);
         }
         return chunk.getLength();
     }
@@ -81,22 +95,21 @@ public class SpdyOutputBuffer implements OutputBuffer {
      * 
      * @param response
      */
-    public void flush(Response response) {
-        flush(response, false);
+    public ChannelFuture flush(Response response) {
+        return flush(response, false);
     }
 
-    private void flush(Response response, boolean last) {
+    private ChannelFuture flush(Response response, boolean last) {
         if (delay != null) {
             if (!response.isCommitted()) {
                 response.action(ActionCode.ACTION_COMMIT, null);
             }
-            ChannelBuffer buffer = this.delay;
+            ChannelBuffer data = this.delay;
             this.delay = null;
-            DataFrame frame = createDataFrame(response, buffer);
-            final boolean debugEnabled = logger.isDebugEnabled();
+            DataFrame frame = createDataFrame(response, data);
             if (last) {
                 frame.setFlags(SpdyFrame.FLAG_FIN);
-                CoyoteAttributes.setFinished(response);
+                fin = true;
                 if (logger.isInfoEnabled()) {
                     logger.info("fin response (by last): " + response.getRequest());
                 }
@@ -104,8 +117,9 @@ public class SpdyOutputBuffer implements OutputBuffer {
             if (debugEnabled) {
                 logger.debug("flush buffer: " + frame);
             }
-            Channels.write(frame.getChannel(), frame);
+            return Channels.write(frame.getChannel(), frame);
         }
+        return null;
     }
 
     /**
@@ -113,19 +127,14 @@ public class SpdyOutputBuffer implements OutputBuffer {
      * 
      * @param response
      */
-    public void close(Response response) {
-        flush(response, true);
-        if (!CoyoteAttributes.isFinished(response)) {
-            if (logger.isInfoEnabled()) {
-                logger.info("fin response (by close): " + response.getRequest());
-            }
-            CoyoteAttributes.setFinished(response);
-            DataFrame frame = new DataFrame();
-            frame.setChannel(CoyoteAttributes.getChannel(response));
-            frame.setStreamId(CoyoteAttributes.getStreamId(response));
-            frame.setFlags(SpdyFrame.FLAG_FIN);
-            Channels.write(frame.getChannel(), frame);
+    public void flushAndClose(Response response) {
+        if (fin) {
+            return;
         }
+        if (delay == null) {
+            delay = ChannelBuffers.EMPTY_BUFFER;
+        }
+        flush(response, true);
     }
 
     public void reset() {

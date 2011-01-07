@@ -74,7 +74,6 @@ public class Commit implements Action {
         headers.put("Content-Length", String.valueOf(contentLength));
         if (contentLength == 0) {
             frame.setFlags(SpdyFrame.FLAG_FIN);
-            CoyoteAttributes.setFinished(response);
             if (logger.isInfoEnabled()) {
                 logger.info("closing response (by commit): " + response.getRequest());
             }
