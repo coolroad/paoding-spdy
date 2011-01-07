@@ -31,8 +31,10 @@ public class Close implements Action {
     @Override
     public void action(Request request, Response response, Object param) {
         // output
-        SpdyOutputBuffer output = (SpdyOutputBuffer) response.getOutputBuffer();
-        output.close(response);
+        if (response.getContentLength() != 0) {
+            SpdyOutputBuffer output = (SpdyOutputBuffer) response.getOutputBuffer();
+            output.flushAndClose(response);
+        }
 
         // subscription
         Subscription subscription = (Subscription) request.getAttribute(Subscription.REQUEST_ATTR);

@@ -47,12 +47,4 @@ public class CoyoteAttributes {
         return getChannel(response.getRequest());
     }
 
-    public static void setFinished(Response response) {
-        response.getRequest().setAttribute("net.paoding.spdy.response.finished", Boolean.TRUE);
-    }
-
-    public static boolean isFinished(Response response) {
-        return response.getRequest().getAttribute("net.paoding.spdy.response.finished") != null;
-    }
-
 }
